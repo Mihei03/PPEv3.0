@@ -34,14 +34,15 @@ class MainWindow(QMainWindow):
 
 
     def _init_ui(self):
-        self.setWindowTitle("PPE Detection System")
+        self.setWindowTitle("Система обнаружения СИЗ")
         self.setGeometry(100, 100, 800, 600)
         self.main_layout = MainLayout(self)  # Явно передаем self как parent
         self.setCentralWidget(self.main_layout)
 
     def _init_status_bar(self):
         """Инициализация статус-бара с постоянным сообщением"""
-        self.statusBar().showMessage("Готов к работе")  # Стартовое сообщение
+        self.logger.info("Готов к работе")
+        self.statusBar().showMessage("Готов к работе")
         self.current_siz_status = None
 
     def _init_detectors(self):
@@ -98,7 +99,6 @@ class MainWindow(QMainWindow):
         status_message = f"Обработка остановлена | Модель: {self.current_model}"
         if self.current_siz_status is not None:
             status_message += f" | Последний статус СИЗ: {'обнаружены' if self.current_siz_status else 'отсутствуют!'}"
-        
         self.statusBar().showMessage(status_message)
 
     @pyqtSlot(str)
@@ -129,15 +129,18 @@ class MainWindow(QMainWindow):
                     3000
                 )
 
-    @pyqtSlot(bool)
-    def _update_siz_status(self, detected):
-        """Обновление статуса СИЗ"""
-        self.current_siz_status = detected
-        if self.processing_active:
-            status = "обнаружены" if detected else "отсутствуют!"
-            self.statusBar().showMessage(
-                f"Обработка | Модель: {self.current_model} | СИЗ: {status}"
-            )
+    @pyqtSlot(object)  # Принимаем любой объект (bool или str)
+    def _update_siz_status(self, status):
+        """Обновление статус-бара в главном окне"""
+        if status == "nothing":
+            message = "СИЗ: ничего не обнаружено!"
+        elif status is True:
+            message = "СИЗ: все обнаружены и на местах"
+        else:
+            message = "СИЗ: обнаружены не все или не на своих местах!"
+        
+        base_message = f"Модель: {self.current_model} | " if self.current_model else ""
+        self.statusBar().showMessage(base_message + message)
 
     @pyqtSlot(str)
     def _on_model_selected(self, model_name):

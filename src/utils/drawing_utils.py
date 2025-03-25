@@ -3,7 +3,7 @@ import mediapipe as mp
 
 def draw_landmarks(image, pose_results, face_results):
     # Рисование ключевых точек тела
-    if pose_results.pose_landmarks:
+    if pose_results is not None and pose_results.pose_landmarks:
         mp.solutions.drawing_utils.draw_landmarks(
             image,
             pose_results.pose_landmarks,
@@ -13,7 +13,7 @@ def draw_landmarks(image, pose_results, face_results):
         )
 
     # Рисование ключевых точек лица
-    if face_results.multi_face_landmarks:
+    if face_results is not None and face_results.multi_face_landmarks:
         for face_landmarks in face_results.multi_face_landmarks:
             mp.solutions.drawing_utils.draw_landmarks(
                 image,

@@ -8,7 +8,7 @@ from utils.logger import AppLogger
 
 class VideoProcessor(QObject):
     update_frame_signal = pyqtSignal(QImage)
-    siz_status_changed = pyqtSignal(bool)
+    siz_status_changed = pyqtSignal(object)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -62,6 +62,7 @@ class VideoProcessor(QObject):
             return
             
         if not self.timer.isActive():
+            self.logger.info("Обработка видео начато")
             # Сброс предыдущего состояния
             self.siz_detected = False  
             self.timer.start(30)
@@ -98,54 +99,105 @@ class VideoProcessor(QObject):
     def _process_detections(self, frame):
         frame = frame.copy()
         
-        # Детекция объектов
-        frame, boxes = self.yolo.detect(frame, self.active_model_type)
-        
-        # Инициализация результатов детекции
+        # 1. Инициализация результатов с защитой от None
         pose_results = None
         face_results = None
-        
-        # Определяем необходимость детекции ключевых точек
-        need_face = (boxes and self.active_model_type == "glasses") or self.show_landmarks
-        need_pose = (boxes and self.active_model_type == "ppe") or self.show_landmarks
-        
-        if need_face:
-            face_results = self.face.detect(frame)
-        if need_pose:
-            pose_results = self.pose.detect(frame)
+        boxes = None
+        siz_statuses = []
 
-        # Проверка СИЗ (только если есть боксы)
-        if boxes:
-            siz_statuses = self._check_compliance(boxes, pose_results, face_results, frame.shape)
-            frame = self._draw_detections(frame, boxes, siz_statuses)
-            self._update_siz_status(siz_statuses)
+        try:
+            # 2. Всегда делаем детекцию ключевых точек (но защищаемся от ошибок)
+            if self.show_landmarks or self.active_model_type:
+                try:
+                    face_results = self.face.detect(frame) if hasattr(self.face, 'detect') else None
+                    pose_results = self.pose.detect(frame) if hasattr(self.pose, 'detect') else None
+                except Exception as e:
+                    self.logger.warning(f"Ошибка детекции ключевых точек: {str(e)}")
 
-        # Отрисовка ключевых точек (только если включено)
-        if self.show_landmarks and (pose_results or face_results):
-            draw_landmarks(frame, pose_results, face_results)
-        
+            # 3. Детекция объектов YOLO (с защитой от ошибок)
+            if self.active_model_type:
+                try:
+                    _, boxes = self.yolo.detect(frame, self.active_model_type)
+                except Exception as e:
+                    self.logger.error(f"Ошибка детекции YOLO: {str(e)}")
+                    boxes = None
+
+            # 4. Проверка СИЗ только если есть что проверять
+            if boxes and len(boxes.xyxy) > 0:
+                try:
+                    siz_statuses = self._check_compliance(boxes, pose_results, face_results, frame.shape)
+                    if not siz_statuses:  # Если вернулся пустой список
+                        siz_statuses = [False] * len(boxes.xyxy)
+                    
+                    # Отрисовка с цветами по статусу
+                    frame = self.yolo._draw_custom_boxes(
+                        frame, 
+                        boxes.xyxy, 
+                        boxes.conf.cpu().numpy(), 
+                        boxes.cls.cpu().numpy().astype(int), 
+                        siz_statuses, 
+                        self.active_model_type
+                    )
+                    self._update_siz_status(siz_statuses)
+                except Exception as e:
+                    self.logger.error(f"Ошибка проверки СИЗ: {str(e)}")
+                    # Рисуем все боксы красными при ошибке
+                    siz_statuses = [False] * len(boxes.xyxy)
+                    frame = self.yolo._draw_custom_boxes(
+                        frame, 
+                        boxes.xyxy, 
+                        boxes.conf.cpu().numpy(), 
+                        boxes.cls.cpu().numpy().astype(int), 
+                        siz_statuses, 
+                        self.active_model_type
+                    )
+
+            # 5. Отрисовка ключевых точек (если включено и есть результаты)
+            if self.show_landmarks:
+                try:
+                    if pose_results or face_results:
+                        draw_landmarks(frame, pose_results, face_results)
+                except Exception as e:
+                    self.logger.error(f"Ошибка отрисовки ключевых точек: {str(e)}")
+
+        except Exception as e:
+            self.logger.error(f"Критическая ошибка обработки кадра: {str(e)}")
+
         return frame
 
     def _check_compliance(self, boxes, pose_results, face_results, frame_shape):
-        if not boxes:
-            return []
-            
+        """Усовершенствованная проверка соответствия с полной защитой от None"""
         try:
-            if self.active_model_type == "glasses":
-                if face_results is None:
-                    face_results = self.face.detect(np.zeros((10,10,3), dtype=np.uint8))  # Пустой фрейм для инициализации
-                return self.siz.check_glasses(boxes, face_results, frame_shape)
+            # 1. Проверка входных данных
+            if boxes is None or not hasattr(boxes, 'xyxy') or len(boxes.xyxy) == 0:
+                return []
                 
-            elif self.active_model_type == "ppe":
-                if pose_results is None:
-                    pose_results = self.pose.detect(np.zeros((10,10,3), dtype=np.uint8))
-                return self.siz.check_ppe(boxes, pose_results, frame_shape)
-                
-        except Exception as e:
-            self.logger.error(f"Ошибка проверки СИЗ: {str(e)}")
-            return [False] * len(boxes.xyxy)
+            # 2. Подготовка списка статусов
+            num_boxes = len(boxes.xyxy)
+            default_status = [False] * num_boxes
             
-        return []
+            # 3. Проверка для разных типов моделей
+            if self.active_model_type == "glasses":
+                if face_results is None or not hasattr(face_results, 'multi_face_landmarks'):
+                    return default_status
+                try:
+                    return self.siz.check_glasses(boxes, face_results, frame_shape) or default_status
+                except:
+                    return default_status
+                    
+            elif self.active_model_type == "ppe":
+                if pose_results is None or not hasattr(pose_results, 'pose_landmarks'):
+                    return default_status
+                try:
+                    return self.siz.check_ppe(boxes, pose_results, frame_shape) or default_status
+                except:
+                    return default_status
+                    
+            return default_status
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка в _check_compliance: {str(e)}")
+            return [False] * len(boxes.xyxy) if boxes and hasattr(boxes, 'xyxy') else []
 
     def _draw_detections(self, frame, boxes, statuses):
         for box, status in zip(boxes.xyxy, statuses):
@@ -163,15 +215,18 @@ class VideoProcessor(QObject):
         return frame
 
     def _update_siz_status(self, statuses):
-        if not statuses:
+        """Определение общего статуса на основе списка статусов"""
+        if statuses == "nothing":
+            new_status = "nothing"
+        elif not statuses:
             new_status = False
         else:
-            new_status = all(statuses) if self.active_model_type == "ppe" else any(statuses)
+            new_status = all(statuses) if isinstance(statuses, list) else False
         
         if new_status != self.siz_detected:
             self.siz_detected = new_status
             self.siz_status_changed.emit(self.siz_detected)
-
+    
     def _emit_frame(self, frame):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_frame.shape
