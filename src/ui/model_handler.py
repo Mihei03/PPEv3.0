@@ -3,62 +3,48 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from src.config import Config
 import os
 from glob import glob
-import shutil
+from utils.logger import AppLogger
 
 class ModelHandler(QObject):
-    model_loaded = pyqtSignal(dict)
+    model_loaded = pyqtSignal(str, dict)  # Сигнал с именем модели и информацией
+    model_loading = pyqtSignal(str)
     
-    def __init__(self, parent):
+    def __init__(self, parent=None): 
         super().__init__(parent)
-        self.parent = parent
+        self.logger = AppLogger.get_logger()
         
     def refresh_models_list(self):
-        """Возвращает список доступных моделей"""
+        """Возвращает список доступных моделей с проверкой директории"""
+        if not os.path.exists(Config.MODELS_ROOT):
+            os.makedirs(Config.MODELS_ROOT, exist_ok=True)
+            return []
+            
         models = Config.get_available_models()
-        return list(models.keys()) if models else []
+        return sorted(models.keys())  # Сортируем по алфавиту
         
     def load_model(self, model_name):
-        """Загружает выбранную модель"""
-        try:
-            if model_name == "Загрузить другую модель...":
-                model_dir = QFileDialog.getExistingDirectory(
-                    self.parent, 
-                    "Выберите папку с моделью",
-                    "",
-                    QFileDialog.Option.ShowDirsOnly
-                )
-                
-                if not model_dir:
-                    return None
-                    
-                pt_files = glob(os.path.join(model_dir, "*.pt"))
-                yaml_files = glob(os.path.join(model_dir, "data.yaml"))
-                
-                if not pt_files or not yaml_files:
-                    raise ValueError("Папка должна содержать .pt файл и data.yaml")
-                    
-                model_name = os.path.basename(model_dir)
-                target_dir = os.path.join(Config.MODELS_ROOT, model_name)
-                
-                if not os.path.exists(target_dir):
-                    os.makedirs(target_dir)
-                    shutil.copy(pt_files[0], os.path.join(target_dir, os.path.basename(pt_files[0])))
-                    shutil.copy(yaml_files[0], os.path.join(target_dir, "data.yaml"))
-                
-                model_info = {
-                    'path': target_dir,
-                    'pt_file': os.path.join(target_dir, os.path.basename(pt_files[0])),
-                    'yaml_file': os.path.join(target_dir, "data.yaml")
-                }
-            else:
-                models = Config.get_available_models()
-                model_info = models.get(model_name)
-                if not model_info:
-                    raise FileNotFoundError("Модель не найдена")
+        """Загрузка модели с проверками и сигналами"""
+        if not model_name or model_name == "Нет доступных моделей":
+            return False
             
-            self.model_loaded.emit(model_info)
-            return model_info
+        try:
+            self.model_loading.emit(model_name)
+            models = Config.get_available_models()
+            
+            if model_name not in models:
+                self.logger.error(f"Модель {model_name} не найдена")
+                raise ValueError(f"Модель {model_name} не найдена")
+                
+            model_info = models[model_name]
+            
+            # Проверка существования файлов модели
+            if not os.path.exists(model_info['pt_file']) or not os.path.exists(model_info['yaml_file']):
+                self.logger.error(f"Файлы модели {model_name} не найдена")
+                raise FileNotFoundError(f"Файлы модели {model_name} не найдены")
+            
+            self.model_loaded.emit(model_name, model_info)
+            return True
             
         except Exception as e:
-            QMessageBox.critical(self.parent, "Ошибка", f"Не удалось загрузить модель:\n{str(e)}")
-            return None
+            self.logger.error(f"Ошибка загрузки модели: {str(e)}")
+            return False

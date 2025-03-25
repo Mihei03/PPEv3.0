@@ -4,11 +4,13 @@ from glob import glob
 
 class Config:
     CAMERA_INDEX = 0
-    MODELS_ROOT = os.path.abspath(os.path.join("data", "models"))
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    MODELS_ROOT = os.path.join(PROJECT_ROOT, "PPEV3.0", "data", "models")
+    os.makedirs(MODELS_ROOT, exist_ok=True)
     
     @staticmethod
     def get_available_models():
-        """Находит все валидные модели в подпапках"""
+        """Возвращает модели с проверкой файлов"""
         models = {}
         if not os.path.exists(Config.MODELS_ROOT):
             return models
@@ -16,14 +18,14 @@ class Config:
         for model_dir in os.listdir(Config.MODELS_ROOT):
             model_path = os.path.join(Config.MODELS_ROOT, model_dir)
             if os.path.isdir(model_path):
-                # Ищем любой .pt файл и data.yaml
-                pt_files = glob(os.path.join(model_path, "*.pt"))
-                yaml_files = glob(os.path.join(model_path, "data.yaml"))
+                # Проверяем наличие обязательных файлов
+                pt_files = [f for f in os.listdir(model_path) if f.endswith('.pt')]
+                yaml_files = [f for f in os.listdir(model_path) if f.lower() == 'data.yaml']
                 
                 if pt_files and yaml_files:
                     models[model_dir] = {
                         'path': model_path,
-                        'pt_file': pt_files[0],
-                        'yaml_file': yaml_files[0]
+                        'pt_file': os.path.join(model_path, pt_files[0]),
+                        'yaml_file': os.path.join(model_path, yaml_files[0])
                     }
         return models

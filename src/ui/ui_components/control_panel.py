@@ -6,15 +6,17 @@ class ControlPanel(QWidget):
     stop_processing = pyqtSignal()
     toggle_landmarks = pyqtSignal(bool)
     
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super().__init__(parent)
+        self._setup_ui()
+        
+    def _setup_ui(self):
         self.landmarks_check = QCheckBox("Показывать ключевые точки")
         self.start_btn = QPushButton("Start")
         
-        layout = QHBoxLayout()
+        layout = QHBoxLayout(self)  # Указываем parent для layout
         layout.addWidget(self.landmarks_check)
         layout.addWidget(self.start_btn)
-        self.setLayout(layout)
         
         self.landmarks_check.setChecked(True)
         self.landmarks_check.stateChanged.connect(

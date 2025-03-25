@@ -22,10 +22,3 @@ def draw_landmarks(image, pose_results, face_results):
                 mp.solutions.drawing_utils.DrawingSpec(color=(255, 0, 0), thickness=1, circle_radius=1),
                 mp.solutions.drawing_utils.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
             )
-
-def draw_siz_status(image, siz_detected):
-    """Отрисовка статуса СИЗ (всегда отображается)"""
-    if siz_detected:
-        cv2.putText(image, "SIZ Detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    else:
-        cv2.putText(image, "SIZ Not Detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
