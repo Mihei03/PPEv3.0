@@ -37,6 +37,10 @@ class ModelHandler(QObject):
                 
             model_info = models[model_name]
             
+            # Добавляем имена классов в model_info
+            if 'ppe' in model_name.lower():  # или другой идентификатор вашей модели
+                model_info['class_names'] = ['glove', 'helmet', 'pants', 'vest']
+            
             # Проверка существования файлов модели
             if not os.path.exists(model_info['pt_file']) or not os.path.exists(model_info['yaml_file']):
                 self.logger.error(f"Файлы модели {model_name} не найдена")

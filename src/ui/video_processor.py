@@ -2,8 +2,6 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QImage
 import cv2
 from src.utils.drawing_utils import draw_landmarks
-from src.config import Config
-import numpy as np
 from utils.logger import AppLogger
 
 class VideoProcessor(QObject):
@@ -15,24 +13,34 @@ class VideoProcessor(QObject):
         self.timer = QTimer()
         self.logger = AppLogger.get_logger()
         self.timer.timeout.connect(self._process_frame)
-        self._setup_parameters()
+        self._setup_initial_state()
         self._init_camera()
-
-    def _setup_parameters(self):
+        
+    def _setup_initial_state(self):
+        """Инициализация состояния процессора"""
         self.show_landmarks = True
         self.active_model_type = None
         self.model_loaded = False
-        self.siz_detected = False
+        self.siz_detected = None
         self.processing_active = False
         self.detectors_ready = False
 
     def _init_camera(self):
-        self.cap = cv2.VideoCapture(Config.CAMERA_INDEX)
-        if not self.cap.isOpened():
-            self.logger.error("Не удалось открыть камеру")
-            raise RuntimeError("Не удалось открыть камеру")
+        """Инициализация камеры с несколькими попытками"""
+        for i in range(3):  # Пробуем разные индексы камер
+            self.cap = cv2.VideoCapture(i)
+            if self.cap.isOpened():
+                self.logger.info(f"Камера инициализирована с индексом {i}")
+                # Установим оптимальные параметры
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+                return
+        self.logger.error("Не удалось инициализировать камеру")
+        self.cap = None
 
     def set_detectors(self, yolo, face, pose, siz):
+        """Установка детекторов"""
         self.yolo = yolo
         self.face = face
         self.pose = pose
@@ -41,200 +49,186 @@ class VideoProcessor(QObject):
 
     @pyqtSlot(str, dict)
     def load_model(self, model_type, model_info):
-        """Загрузка модели в детектор"""
+        """Загрузка модели детекции"""
         if not self.detectors_ready:
             return False
             
         try:
             if self.yolo.load_model(model_type, model_info):
                 self.active_model_type = model_type
+                # Добавляем имена классов в yolo.class_names
+                if 'class_names' in model_info:
+                    self.yolo.class_names[model_type] = model_info['class_names']
                 self.model_loaded = True
-                self.logger.info(f"Модель {model_type} успешно загружена в детектор")
+                self.logger.info(f"Модель {model_type} загружена успешно")
                 return True
             return False
         except Exception as e:
-            self.logger.error(f"Ошибка загрузки модели в детектор: {str(e)}")
+            self.logger.error(f"Ошибка загрузки модели: {str(e)}")
             return False
 
     @pyqtSlot()
     def start_processing(self):
+        """Запуск обработки видео"""
         if not self.active_model_type:
+            self.logger.warning("Активная модель не выбрана")
             return
             
+        if not self.cap or not self.cap.isOpened():
+            self._init_camera()  # Повторная инициализация при проблемах
+            if not self.cap or not self.cap.isOpened():
+                self.logger.error("Камера недоступна")
+                return
+            
         if not self.timer.isActive():
-            self.logger.info("Обработка видео начато")
-            # Сброс предыдущего состояния
-            self.siz_detected = False  
-            self.timer.start(30)
+            self.processing_active = True
+            self.timer.start(33)  # ~30 FPS
+            self.logger.info("Началась обработка видео")
 
     @pyqtSlot()
     def stop_processing(self):
-        """Полная остановка обработки"""
+        """Остановка обработки видео"""
         if self.timer.isActive():
             self.timer.stop()
+            self.processing_active = False
             self.logger.info("Обработка видео остановлена")
-
-    @pyqtSlot(bool)
-    def toggle_landmarks(self, state):
-        """Метод для переключения отображения ключевых точек"""
-        self.show_landmarks = state
 
     def _process_frame(self):
         """Основной цикл обработки кадра"""
-        if not self.active_model_type:
-            return
-            
-        ret, frame = self.cap.read()
-        if not ret:
-            return
-            
         try:
-            # Обработка кадра и детекция
+            ret, frame = self.cap.read()
+            if not ret:
+                self.logger.warning("Не удалось захватить кадр")
+                return
+                
             processed_frame = self._process_detections(frame)
             self._emit_frame(processed_frame)
-            
         except Exception as e:
-            self.logger.error(f"Ошибка обработки: {str(e)}")
+            self.logger.error(f"Ошибка обработки кадра: {str(e)}")
 
     def _process_detections(self, frame):
+        """Обработка и детекция объектов с полной защитой от None"""
         frame = frame.copy()
         
-        # 1. Инициализация результатов с защитой от None
-        pose_results = None
-        face_results = None
-        boxes = None
-        siz_statuses = []
-
         try:
-            # 2. Всегда делаем детекцию ключевых точек (но защищаемся от ошибок)
-            if self.show_landmarks or self.active_model_type:
-                try:
-                    face_results = self.face.detect(frame) if hasattr(self.face, 'detect') else None
-                    pose_results = self.pose.detect(frame) if hasattr(self.pose, 'detect') else None
-                except Exception as e:
-                    self.logger.warning(f"Ошибка детекции ключевых точек: {str(e)}")
+            # Детекция ключевых точек
+            face_results = self.face.detect(frame) if (self.show_landmarks and hasattr(self.face, 'detect')) else None
+            pose_results = self.pose.detect(frame) if (self.show_landmarks and hasattr(self.pose, 'detect')) else None
 
-            # 3. Детекция объектов YOLO (с защитой от ошибок)
-            if self.active_model_type:
+            # Детекция объектов YOLO с защитой от ошибок
+            boxes = None
+            if self.active_model_type and hasattr(self.yolo, 'detect'):
                 try:
                     _, boxes = self.yolo.detect(frame, self.active_model_type)
                 except Exception as e:
-                    self.logger.error(f"Ошибка детекции YOLO: {str(e)}")
+                    self.logger.error(f"YOLO detection error: {str(e)}")
                     boxes = None
 
-            # 4. Проверка СИЗ только если есть что проверять
-            if boxes and len(boxes.xyxy) > 0:
+            # Обработка результатов детекции
+            if boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0:
+                class_names = self.yolo.class_names.get(self.active_model_type, [])
+                
+                # Проверка соответствия СИЗ с защитой от ошибок
+                statuses = []
                 try:
-                    siz_statuses = self._check_compliance(boxes, pose_results, face_results, frame.shape)
-                    if not siz_statuses:  # Если вернулся пустой список
-                        siz_statuses = [False] * len(boxes.xyxy)
-                    
-                    # Отрисовка с цветами по статусу
-                    frame = self.yolo._draw_custom_boxes(
-                        frame, 
-                        boxes.xyxy, 
-                        boxes.conf.cpu().numpy(), 
-                        boxes.cls.cpu().numpy().astype(int), 
-                        siz_statuses, 
-                        self.active_model_type
-                    )
-                    self._update_siz_status(siz_statuses)
+                    statuses = self.siz.check_items(boxes, pose_results, face_results, frame.shape, class_names)
                 except Exception as e:
-                    self.logger.error(f"Ошибка проверки СИЗ: {str(e)}")
-                    # Рисуем все боксы красными при ошибке
-                    siz_statuses = [False] * len(boxes.xyxy)
-                    frame = self.yolo._draw_custom_boxes(
-                        frame, 
-                        boxes.xyxy, 
-                        boxes.conf.cpu().numpy(), 
-                        boxes.cls.cpu().numpy().astype(int), 
-                        siz_statuses, 
-                        self.active_model_type
-                    )
+                    self.logger.error(f"Compliance check error: {str(e)}")
+                    statuses = [False] * len(boxes.xyxy)
+                
+                # Отправка статуса
+                self.siz_status_changed.emit(statuses if statuses else False)
+                
+                # Отрисовка детекций
+                frame = self._draw_detections_with_labels(frame, boxes, statuses, class_names)
+            else:
+                self.siz_status_changed.emit("nothing")
 
-            # 5. Отрисовка ключевых точек (если включено и есть результаты)
+            # Отрисовка ключевых точек
             if self.show_landmarks:
                 try:
                     if pose_results or face_results:
                         draw_landmarks(frame, pose_results, face_results)
                 except Exception as e:
-                    self.logger.error(f"Ошибка отрисовки ключевых точек: {str(e)}")
+                    self.logger.error(f"Landmark drawing error: {str(e)}")
 
         except Exception as e:
-            self.logger.error(f"Критическая ошибка обработки кадра: {str(e)}")
-
+            self.logger.error(f"Frame processing error: {str(e)}")
+            self.siz_status_changed.emit(False)
+        
         return frame
 
-    def _check_compliance(self, boxes, pose_results, face_results, frame_shape):
-        """Усовершенствованная проверка соответствия с полной защитой от None"""
+    def _draw_detections_with_labels(self, frame, boxes, statuses, class_names):
+        """Безопасная отрисовка детекций"""
         try:
-            # 1. Проверка входных данных
-            if boxes is None or not hasattr(boxes, 'xyxy') or len(boxes.xyxy) == 0:
-                return []
+            if boxes is None or not hasattr(boxes, 'xyxy') or not hasattr(boxes, 'cls') or not hasattr(boxes, 'conf'):
+                return frame
                 
-            # 2. Подготовка списка статусов
-            num_boxes = len(boxes.xyxy)
-            default_status = [False] * num_boxes
-            
-            # 3. Проверка для разных типов моделей
-            if self.active_model_type == "glasses":
-                if face_results is None or not hasattr(face_results, 'multi_face_landmarks'):
-                    return default_status
+            for i, box in enumerate(boxes.xyxy):
                 try:
-                    return self.siz.check_glasses(boxes, face_results, frame_shape) or default_status
-                except:
-                    return default_status
+                    x1, y1, x2, y2 = map(int, box.cpu().numpy())
+                    status = statuses[i] if i < len(statuses) else False
                     
-            elif self.active_model_type == "ppe":
-                if pose_results is None or not hasattr(pose_results, 'pose_landmarks'):
-                    return default_status
-                try:
-                    return self.siz.check_ppe(boxes, pose_results, frame_shape) or default_status
-                except:
-                    return default_status
+                    # Получаем класс и точность с защитой от ошибок
+                    cls_id = int(boxes.cls[i].cpu().numpy()) if i < len(boxes.cls) else 0
+                    conf = float(boxes.conf[i].cpu().numpy()) if i < len(boxes.conf) else 0.0
+                    class_name = str(class_names[cls_id]) if (class_names and cls_id < len(class_names)) else f"Class {cls_id}"
                     
-            return default_status
-            
+                    color = (0, 255, 0) if status else (0, 0, 255)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    
+                    label = f"{class_name} {conf:.2f}"
+                    cv2.putText(frame, label, (x1, max(y1-10, 20)), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+                except Exception as e:
+                    self.logger.warning(f"Error drawing box {i}: {str(e)}")
+                    continue
+                    
         except Exception as e:
-            self.logger.error(f"Ошибка в _check_compliance: {str(e)}")
-            return [False] * len(boxes.xyxy) if boxes and hasattr(boxes, 'xyxy') else []
+            self.logger.error(f"Drawing error: {str(e)}")
+        
+        return frame
 
     def _draw_detections(self, frame, boxes, statuses):
-        for box, status in zip(boxes.xyxy, statuses):
+        """Отрисовка bounding boxes с классами и точностью"""
+        for box, status, cls_id in zip(boxes.xyxy, statuses, boxes.cls):
             x1, y1, x2, y2 = map(int, box.cpu().numpy())
+            conf = float(boxes.conf[boxes.cls.tolist().index(cls_id)])  # Получаем точность для текущего класса
             color = (0, 255, 0) if status else (0, 0, 255)
+            
+            # Получаем имя класса
+            class_names = self.yolo.class_names.get(self.active_model_type, [])
+            class_id = int(cls_id.cpu().numpy())
+            class_name = str(class_names[class_id]) if class_names and class_id < len(class_names) else f"Class {class_id}"
             
             # Рисуем bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             
-            # Подпись с типом СИЗ и статусом
-            label = f"{'OK' if status else 'FAIL'}"
+            # Подпись с классом и точностью
+            label = f"{class_name} {conf:.2f}"
             cv2.putText(frame, label, (x1, y1-10), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        
         return frame
 
-    def _update_siz_status(self, statuses):
-        """Определение общего статуса на основе списка статусов"""
-        if statuses == "nothing":
-            new_status = "nothing"
-        elif not statuses:
-            new_status = False
-        else:
-            new_status = all(statuses) if isinstance(statuses, list) else False
-        
-        if new_status != self.siz_detected:
-            self.siz_detected = new_status
-            self.siz_status_changed.emit(self.siz_detected)
-    
     def _emit_frame(self, frame):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = rgb_frame.shape
-        q_img = QImage(rgb_frame.data, w, h, ch * w, QImage.Format.Format_RGB888)
-        self.update_frame_signal.emit(q_img)
+        """Конвертация и отправка кадра в UI"""
+        try:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb_frame.shape
+            bytes_per_line = ch * w
+            q_img = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+            self.update_frame_signal.emit(q_img)
+        except Exception as e:
+            self.logger.error(f"Ошибка преобразования кадра: {str(e)}")
 
     def cleanup(self):
-        """Полная очистка ресурсов"""
+        """Очистка ресурсов"""
         self.stop_processing()
-        if hasattr(self, 'cap') and self.cap.isOpened():
+        if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
             self.cap.release()
+        self.logger.info("Ресурсы очищены")
+
+    @pyqtSlot(bool)
+    def toggle_landmarks(self, state):
+        """Переключение отображения ключевых точек"""
+        self.show_landmarks = state

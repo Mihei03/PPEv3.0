@@ -1,196 +1,207 @@
 from utils.logger import AppLogger
+import numpy as np
 
 class SIZDetector:
     def __init__(self):
-        # Параметры для проверки (можно настраивать)
-        self.glasses_eye_threshold = 0.7  # Минимальное покрытие глаз для очков
-        self.helmet_head_threshold = 0.6  # Минимальное покрытие головы для каски
-        self.vest_min_points = 2         # Минимальное количество покрытых точек для жилета
         self.logger = AppLogger.get_logger()
+        self._setup_thresholds()
+        
+    def _setup_thresholds(self):
+        """Конфигурационные параметры для проверок"""
+        self.params = {
+            'glasses': {
+                'eye_points': {
+                    'left': [33, 7, 163, 144],
+                    'right': [263, 249, 390, 373]
+                },
+                'min_coverage': 0.7
+            },
+            'glove': {
+                'hand_points': {
+                    'left': [15, 17, 19, 21],  # Точки левой кисти MediaPipe Pose
+                    'right': [16, 18, 20, 22]   # Точки правой кисти
+                },
+                'min_coverage': 0.6  # 60% точек должны быть покрыты
+            },
+            'helmet': {
+                'head_points': [0, 1, 2, 5, 7, 8],  # Точки головы
+                'min_coverage': 0.7  # 70% покрытия
+            },
+            'pants': {
+                'leg_points': {
+                    'left': [25, 27, 29, 31],  # Левая нога
+                    'right': [26, 28, 30, 32]   # Правая нога
+                },
+                'min_coverage': 0.5  # 50% покрытия
+            },
+            'vest': {
+                'body_points': [11, 12, 23, 24],  # Плечи и таз
+                'min_points': 3  # Должен покрывать 3 из 4 точек
+            }
+        }
 
-    def check_glasses(self, boxes, face_results, image_shape):
-        """Проверка очков с полной защитой от None"""
+    def check_items(self, boxes, pose_results, face_results, frame_shape, class_names):
+        """Проверка объектов с полной защитой от ошибок"""
         try:
-            # 1. Проверка на полное отсутствие данных
-            if boxes is None:
-                self.logger.debug("Нет данных о боксах (boxes = None)")
-                return "nothing"
+            # Проверка входных данных
+            if boxes is None or not hasattr(boxes, 'xyxy') or len(boxes.xyxy) == 0:
+                return []
                 
-            # 2. Проверка структуры boxes
-            if not hasattr(boxes, 'xyxy'):
-                self.logger.warning(f"Некорректная структура boxes: {type(boxes)}")
-                return "nothing"
+            if not isinstance(class_names, (list, dict)):
+                class_names = []
                 
-            # 3. Проверка на пустые результаты
-            if len(boxes.xyxy) == 0:
-                self.logger.debug("Нет обнаруженных очков (пустой список boxes.xyxy)")
-                return "nothing"
-                
-            # 4. Проверка face_results
-            if face_results is None:
-                self.logger.debug("Нет данных о лице (face_results = None)")
-                return [False] * len(boxes.xyxy)
-                
-            # 5. Проверка структуры face_results
-            if not hasattr(face_results, 'multi_face_landmarks'):
-                self.logger.warning(f"Некорректная структура face_results: {type(face_results)}")
-                return [False] * len(boxes.xyxy)
-                
-            # 6. Проверка на пустые landmarks
-            if not face_results.multi_face_landmarks:
-                self.logger.debug("Нет landmarks лица (пустой список multi_face_landmarks)")
-                return [False] * len(boxes.xyxy)
-                
-            # Основная логика проверки
-            h, w = image_shape[:2]
+            h, w = frame_shape[:2]
             statuses = []
             
-            for box in boxes.xyxy:
+            for i, (box, cls_id) in enumerate(zip(boxes.xyxy, boxes.cls)):
                 try:
-                    x1, y1, x2, y2 = map(int, box.cpu().numpy())
-                    glasses_rect = (x1, y1, x2, y2)
+                    class_id = int(cls_id.cpu().numpy())
+                    class_name = str(class_names[class_id]) if (class_names and class_id < len(class_names)) else str(class_id)
                     status = False
                     
-                    for face_landmarks in face_results.multi_face_landmarks:
-                        if not hasattr(face_landmarks, 'landmark'):
-                            continue
-                            
-                        left_eye_covered = self._check_eye_coverage(face_landmarks, [33, 7, 163, 144], glasses_rect, w, h)
-                        right_eye_covered = self._check_eye_coverage(face_landmarks, [263, 249, 390, 373], glasses_rect, w, h)
+                    if 'glass' in class_name:
+                        status = self._check_glasses(box, face_results, w, h)
+                    elif 'glove' in class_name:
+                        status = self._check_helmet(box, pose_results, w, h)
+                    elif 'helmet' in class_name:
+                        status = self._check_vest(box, face_results, w, h)
+                    elif 'pants' in class_name:
+                        status = self._check_glove(box, pose_results, w, h)
+                    elif 'vest' in class_name:
+                        status = self._check_boots(box, pose_results, w, h)
                         
-                        if left_eye_covered and right_eye_covered:
-                            status = True
-                            break
-                            
                     statuses.append(status)
                     
-                except Exception as box_e:
-                    self.logger.error(f"Ошибка обработки бокса: {str(box_e)}")
+                except Exception as e:
+                    self.logger.warning(f"Error processing box {i}: {str(e)}")
                     statuses.append(False)
                     
             return statuses
             
         except Exception as e:
-            self.logger.error(f"Критическая ошибка в check_glasses: {str(e)}")
-            return "nothing"
+            self.logger.error(f"Check items error: {str(e)}")
+            return []
 
-    def _check_eye_coverage(self, face_landmarks, eye_points, glasses_rect, w, h):
-        """Проверка покрытия одного глаза"""
-        try:
-            if not hasattr(face_landmarks, 'landmark'):
-                return False
-                
-            covered = sum(
-                1 for i in eye_points 
-                if hasattr(face_landmarks.landmark[i], 'x') and 
-                hasattr(face_landmarks.landmark[i], 'y') and
-                self._point_in_rect(
-                    face_landmarks.landmark[i].x * w,
-                    face_landmarks.landmark[i].y * h,
-                    glasses_rect
-                )
-            )
-            return (covered / len(eye_points)) >= self.glasses_eye_threshold
-        except:
+    def _check_glasses(self, box, face_results, img_w, img_h):
+        """Проверка положения очков"""
+        if not face_results or not hasattr(face_results, 'multi_face_landmarks'):
             return False
-    
-    def check_ppe(self, boxes, pose_results, image_shape):
-        """Проверка СИЗ (каски, жилеты)"""
-        try:
-            # Проверка входных данных
-            if not self._validate_input(boxes, pose_results, require_pose=True):
-                self.logger.debug("Нет данных для проверки СИЗ")
-                return "nothing" if boxes is None else [False] * len(boxes.xyxy)
             
-            h, w = image_shape[:2]
-            statuses = []
+        x1, y1, x2, y2 = map(int, box.cpu().numpy())
+        rect = (x1, y1, x2, y2)
+        
+        for face in face_results.multi_face_landmarks:
+            left_eye = self._check_eye_coverage(face, self.params['glasses']['eye_points']['left'], rect, img_w, img_h)
+            right_eye = self._check_eye_coverage(face, self.params['glasses']['eye_points']['right'], rect, img_w, img_h)
             
-            for box, cls in zip(boxes.xyxy, boxes.cls):
-                x1, y1, x2, y2 = map(int, box.cpu().numpy())
-                class_id = int(cls.cpu().numpy())
-                status = False
-                
-                if class_id == 1:  # helmet
-                    status = self._check_helmet(x1, y1, x2, y2, pose_results, h, w)
-                elif class_id == 2:  # vest
-                    status = self._check_vest(x1, y1, x2, y2, pose_results, h, w)
-                
-                statuses.append(status)
-                
-            return statuses
-            
-        except Exception as e:
-            self.logger.error(f"Ошибка в check_ppe: {str(e)}")
-            return "nothing" if boxes is None else [False] * len(boxes.xyxy)
+            if left_eye and right_eye:
+                return True
+        return False
 
-    def _validate_input(self, boxes, results, require_face=False, require_pose=False):
-        """Проверка валидности входных данных"""
-        if boxes is None:
+    def _check_glove(self, box, pose_results, img_w, img_h):
+        """Проверка перчаток"""
+        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
             return False
-            
-        if not hasattr(boxes, 'xyxy') or len(boxes.xyxy) == 0:
-            return False
-            
-        if require_face and (results is None or not hasattr(results, 'multi_face_landmarks')):
-            return False
-            
-        if require_pose and (results is None or not hasattr(results, 'pose_landmarks')):
-            return False
-            
-        return True
 
-    def _check_eyes_coverage(self, face_landmarks, glasses_rect, w, h):
-        """Проверяет покрытие обоих глаз"""
-        left_eye_points = [33, 7, 163, 144]
-        right_eye_points = [263, 249, 390, 373]
+        x1, y1, x2, y2 = map(int, box.cpu().numpy())
+        glove_rect = (x1, y1, x2, y2)
         
-        left_covered = sum(
-            self._point_in_rect(face_landmarks.landmark[i].x * w,
-                              face_landmarks.landmark[i].y * h,
-                              glasses_rect)
-            for i in left_eye_points
-        ) / len(left_eye_points) >= self.glasses_eye_threshold
+        # Проверяем обе руки
+        left_covered = self._check_coverage(
+            pose_results, 
+            self.params['glove']['hand_points']['left'], 
+            glove_rect, img_w, img_h
+        )
+        right_covered = self._check_coverage(
+            pose_results,
+            self.params['glove']['hand_points']['right'],
+            glove_rect, img_w, img_h
+        )
         
-        right_covered = sum(
-            self._point_in_rect(face_landmarks.landmark[i].x * w,
-                              face_landmarks.landmark[i].y * h,
-                              glasses_rect)
-            for i in right_eye_points
-        ) / len(right_eye_points) >= self.glasses_eye_threshold
-        
-        return left_covered and right_covered
+        return left_covered or right_covered
 
-    def _point_in_rect(self, x, y, rect):
-        """Проверяет, находится ли точка (x,y) внутри прямоугольника"""
-        x1, y1, x2, y2 = rect
-        return x1 <= x <= x2 and y1 <= y <= y2
-        
-    def _check_helmet(self, x1, y1, x2, y2, pose_results, h, w):
+    def _check_helmet(self, box, face_results, img_w, img_h):
         """Проверка каски"""
-        try:
-            head_points = [0, 1, 2, 5, 7, 8]
-            covered_points = sum(
-                self._point_in_rect(pose_results.pose_landmarks.landmark[i].x * w,
-                                  pose_results.pose_landmarks.landmark[i].y * h,
-                                  (x1, y1, x2, y2))
-                for i in head_points
-            )
-            return (covered_points / len(head_points)) >= self.helmet_head_threshold
-        except Exception as e:
-            self.logger.warning(f"Ошибка проверки каски: {str(e)}")
+        if not face_results or not hasattr(face_results, 'pose_landmarks'):
             return False
-            
-    def _check_vest(self, x1, y1, x2, y2, pose_results, h, w):
+
+        x1, y1, x2, y2 = map(int, box.cpu().numpy())
+        helmet_rect = (x1, y1, x2, y2)
+        
+        covered = sum(
+            1 for i in self.params['helmet']['head_points']
+            if self._is_landmark_covered(face_results.pose_landmarks.landmark[i], helmet_rect, img_w, img_h)
+        )
+        return (covered / len(self.params['helmet']['head_points'])) >= self.params['helmet']['min_coverage']
+    
+    def _check_pants(self, box, pose_results, img_w, img_h):
+        """Проверка защитных штанов"""
+        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
+            return False
+
+        x1, y1, x2, y2 = map(int, box.cpu().numpy())
+        pants_rect = (x1, y1, x2, y2)
+        
+        # Проверяем обе ноги
+        left_covered = self._check_coverage(
+            pose_results,
+            self.params['pants']['leg_points']['left'],
+            pants_rect, img_w, img_h
+        )
+        right_covered = self._check_coverage(
+            pose_results,
+            self.params['pants']['leg_points']['right'],
+            pants_rect, img_w, img_h
+        )
+        
+        return left_covered or right_covered
+    
+    def _check_vest(self, box, pose_results, img_w, img_h):
         """Проверка жилета"""
-        try:
-            key_points = [11, 12, 23, 24]
-            covered_points = sum(
-                self._point_in_rect(pose_results.pose_landmarks.landmark[i].x * w,
-                                  pose_results.pose_landmarks.landmark[i].y * h,
-                                  (x1, y1, x2, y2))
-                for i in key_points
-            )
-            return covered_points >= self.vest_min_points
-        except Exception as e:
-            self.logger.warning(f"Ошибка проверки жилета: {str(e)}")
+        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
             return False
+
+        x1, y1, x2, y2 = map(int, box.cpu().numpy())
+        vest_rect = (x1, y1, x2, y2)
+        
+        covered = sum(
+            1 for i in self.params['vest']['body_points']
+            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], vest_rect, img_w, img_h)
+        )
+        return covered >= self.params['vest']['min_points']
+
+    def _validate_boxes(self, boxes):
+        """Проверка валидности входных боксов"""
+        return boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0
+
+    def _check_eye_coverage(self, face_landmarks, eye_points, rect, img_w, img_h):
+        """Проверка покрытия глаза"""
+        covered = sum(
+            1 for i in eye_points
+            if self._is_landmark_covered(face_landmarks.landmark[i], rect, img_w, img_h)
+        )
+        return (covered / len(eye_points)) >= self.params['glasses']['min_coverage']
+
+    def _validate_input(self, boxes):
+        """Проверка валидности входных данных"""
+        return boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0
+
+    def _get_class_name(self, class_id, class_names):
+        """Получение имени класса с защитой от ошибок"""
+        if class_names and class_id < len(class_names):
+            return str(class_names[class_id]).lower()
+        return str(class_id)
+
+    def _check_coverage(self, pose_results, points, rect, img_w, img_h):
+        """Проверка покрытия для набора точек"""
+        covered = sum(
+            1 for i in points
+            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], rect, img_w, img_h)
+        )
+        return (covered / len(points)) >= 0.5  # Базовый порог покрытия
+    
+    def _is_landmark_covered(self, landmark, rect, img_w, img_h):
+        """Проверка покрытия конкретной точки"""
+        x = landmark.x * img_w
+        y = landmark.y * img_h
+        return rect[0] <= x <= rect[2] and rect[1] <= y <= rect[3]

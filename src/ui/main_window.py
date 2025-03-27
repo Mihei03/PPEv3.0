@@ -129,18 +129,26 @@ class MainWindow(QMainWindow):
                     3000
                 )
 
-    @pyqtSlot(object)  # Принимаем любой объект (bool или str)
+    @pyqtSlot(object)
     def _update_siz_status(self, status):
-        """Обновление статус-бара в главном окне"""
-        if status == "nothing":
-            message = "СИЗ: ничего не обнаружено!"
-        elif status is True:
-            message = "СИЗ: все обнаружены и на местах"
-        else:
-            message = "СИЗ: обнаружены не все или не на своих местах!"
-        
-        base_message = f"Модель: {self.current_model} | " if self.current_model else ""
-        self.statusBar().showMessage(base_message + message)
+        """Обновление статус-бара с улучшенной обработкой"""
+        try:
+            if status == "nothing":
+                message = "СИЗ: ничего не обнаружено!"
+            elif isinstance(status, list):
+                if not status:  # Пустой список
+                    message = "СИЗ: не обнаружены"
+                else:
+                    message = "СИЗ: все на местах" if all(status) else "СИЗ: обнаружены не все или не на своих местах!"
+            else:
+                message = "СИЗ: все на местах" if status else "СИЗ: проблемы обнаружены..."
+            
+            base_message = f"Модель: {self.current_model} | " if hasattr(self, 'current_model') and self.current_model else ""
+            self.statusBar().showMessage(base_message + message)
+            
+        except Exception as e:
+            self.logger.error(f"Status update error: {str(e)}")
+            self.statusBar().showMessage("Ошибка обновления статуса")
 
     @pyqtSlot(str)
     def _on_model_selected(self, model_name):
