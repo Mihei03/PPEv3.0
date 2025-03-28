@@ -8,6 +8,8 @@ from src.detection.pose_detection import PoseDetector
 from src.detection.siz_detection import SIZDetector
 from .ui_layout import MainLayout
 from utils.logger import AppLogger
+import cv2
+from config import Config
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -67,6 +69,7 @@ class MainWindow(QMainWindow):
         # Подключение сигналов от ModelHandler
         self.model_handler.model_loading.connect(self._on_model_loading)
         self.model_handler.model_loaded.connect(self._on_model_loaded)
+        self.main_layout.model_selector.load_model_requested.connect(self._load_new_model)
         
         # Подключение сигналов к layout
         self.video_processor.update_frame_signal.connect(
@@ -76,6 +79,33 @@ class MainWindow(QMainWindow):
             self._update_siz_status
         )
 
+    @pyqtSlot()
+    def _load_new_model(self):
+        """Обработка добавления новой модели"""
+        if self.model_handler.add_model_from_folder():
+            models = self.model_handler.refresh_models_list()
+            self.main_layout.model_selector.refresh_models(models)
+            
+            # Проверяем камеру после загрузки
+            if not self._check_camera():
+                self.statusBar().showMessage("Модель добавлена! Камера недоступна", 5000)
+            else:
+                self.statusBar().showMessage("Модель успешно добавлена", 5000)
+
+    def _check_camera(self):
+        """Проверка камеры с сообщением в статус бар"""
+        try:
+            cap = cv2.VideoCapture(Config.CAMERA_INDEX)
+            if cap.isOpened():
+                cap.release()
+                return True
+            
+            self.statusBar().showMessage("Внимание: камера не подключена", 5000)
+            return False
+        except Exception as e:
+            self.logger.error(f"Ошибка проверки камеры: {str(e)}")
+            return False
+           
     @pyqtSlot()
     def _on_start_processing(self):
         """Обработка нажатия Start"""

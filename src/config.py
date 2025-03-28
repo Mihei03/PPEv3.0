@@ -20,7 +20,7 @@ class Config:
             if os.path.isdir(model_path):
                 # Проверяем наличие обязательных файлов
                 pt_files = [f for f in os.listdir(model_path) if f.endswith('.pt')]
-                yaml_files = [f for f in os.listdir(model_path) if f.lower() == 'data.yaml']
+                yaml_files = [f for f in os.listdir(model_path) if f.endswith('.yaml')]
                 
                 if pt_files and yaml_files:
                     models[model_dir] = {

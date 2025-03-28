@@ -6,31 +6,59 @@ from config import Config
 from utils.logger import AppLogger
 
 def check_camera():
-    cap = cv2.VideoCapture(Config.CAMERA_INDEX)
-    if not cap.isOpened():
-        QMessageBox.critical(None, "Ошибка", "Камера не доступна!")
+    """Проверка доступности камеры с записью в лог"""
+    logger = AppLogger.get_logger()
+    try:
+        cap = cv2.VideoCapture(Config.CAMERA_INDEX)
+        if not cap.isOpened():
+            logger.warning("Камера не доступна! Приложение запустится без видеоввода")
+            return False
+        cap.release()
+        logger.info("Камера успешно подключена")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка проверки камеры: {str(e)}")
         return False
-    cap.release()
-    return True
 
 def check_models():
-    models = Config.get_available_models()
-    if not models:
-        QMessageBox.critical(None, "Ошибка", 
-            f"Не найдены модели в папке:\n{Config.MODELS_ROOT}\n"
-            f"Поместите модели в формате: /models/your_model/[model.pt, data.yaml]")
+    """Проверка наличия моделей с записью в лог"""
+    logger = AppLogger.get_logger()
+    try:
+        models = Config.get_available_models()
+        if not models:
+            logger.warning(f"Не найдены модели в папке: {Config.MODELS_ROOT}")
+            return False
+        logger.info(f"Найдены модели: {list(models.keys())}")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка проверки моделей: {str(e)}")
         return False
-    return True
+
+def show_warning_messages(app):
+    """Показать предупреждения (но не блокировать запуск)"""
+    # Проверка камеры
+    cap = cv2.VideoCapture(Config.CAMERA_INDEX)
+    if not cap.isOpened():
+        QMessageBox.warning(None, "Предупреждение", 
+            "Камера не доступна! Некоторые функции будут недоступны.")
+    cap.release()
 
 def main():
     logger = AppLogger.get_logger()
     logger.info("Запуск приложения")
+    
+    # Добавление корневой директории в PYTHONPATH
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.append(root_dir)
     
     app = QApplication(sys.argv)
-    if not check_camera() or not check_models():
-        sys.exit(1)
+    
+    # Проверки (только для логирования)
+    check_camera()
+    check_models()
+    
+    # Показать предупреждения (не блокирующие)
+    show_warning_messages(app)
     
     try:
         from src.ui.main_window import MainWindow
@@ -46,10 +74,17 @@ def main():
                 raise AttributeError(f"VideoProcessor отсутствует метод {method}")
         
         window.show()
-        window.statusBar().showMessage("Система инициализирована", 3000)
+        status_message = "Система инициализирована"
+        if not check_camera():
+            status_message += " (камера не доступна)"
+        if not check_models():
+            status_message += " (модели не найдены)"
+        
+        window.statusBar().showMessage(status_message, 3000)
         sys.exit(app.exec())
     except Exception as e:
         logger.error(f"Не удалось запустить приложение: {str(e)}")
+        QMessageBox.critical(None, "Ошибка", f"Критическая ошибка: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

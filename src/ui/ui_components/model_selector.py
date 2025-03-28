@@ -3,7 +3,8 @@ from PyQt6.QtCore import pyqtSignal
 
 class ModelSelector(QWidget):
     model_selected = pyqtSignal(str)
-    
+    load_model_requested = pyqtSignal()
+
     def __init__(self, parent=None):  # Изменено на необязательный parent
         super().__init__(parent)
         self.current_model = None
@@ -12,15 +13,23 @@ class ModelSelector(QWidget):
     def _setup_ui(self):
         self.combo = QComboBox()
         self.load_btn = QPushButton("Активировать модель")
-        
+        self.add_btn = QPushButton("Добавить модель")
+        self.add_btn.setToolTip("Загрузить модель из папки с .pt и .yaml файлами")
+
         layout = QHBoxLayout()
-        layout.addWidget(self.combo)
-        layout.addWidget(self.load_btn)
+        layout.addWidget(self.combo, stretch=4)
+        layout.addWidget(self.load_btn, stretch=1)
+        layout.addWidget(self.add_btn, stretch=1)
         self.setLayout(layout)
-        
+
         self.load_btn.clicked.connect(self._activate_model)
+        self.add_btn.clicked.connect(self._add_model)
         self.combo.currentTextChanged.connect(self._on_model_changed)
-        
+
+    def _add_model(self):
+        """Инициирует процесс добавления модели"""
+        self.load_model_requested.emit()
+
     def refresh_models(self, models):
         """Обновление списка моделей с выделением первой"""
         self.combo.clear()

@@ -94,17 +94,33 @@ class VideoProcessor(QObject):
             self.logger.info("Обработка видео остановлена")
 
     def _process_frame(self):
-        """Основной цикл обработки кадра"""
+        """Обработка кадра с переподключением камеры"""
         try:
+            # Если камера не инициализирована, пытаемся подключиться
+            if not self.cap or not self.cap.isOpened():
+                self._init_camera()
+                if not self.cap or not self.cap.isOpened():
+                    self.logger.warning("Камера недоступна, пропускаем кадр")
+                    QTimer.singleShot(1000, self._process_frame)  # Повтор через 1 сек
+                    return
+
+            # Чтение кадра
             ret, frame = self.cap.read()
             if not ret:
-                self.logger.warning("Не удалось захватить кадр")
+                self.logger.warning("Ошибка захвата кадра, переподключаем камеру")
+                self.cap.release()
+                self.cap = None
+                QTimer.singleShot(1000, self._process_frame)  # Повтор через 1 сек
                 return
-                
+
+            # Обработка кадра
             processed_frame = self._process_detections(frame)
             self._emit_frame(processed_frame)
+
         except Exception as e:
-            self.logger.error(f"Ошибка обработки кадра: {str(e)}")
+            self.logger.error(f"Критическая ошибка обработки: {str(e)}")
+            self.stop_processing()
+
 
     def _process_detections(self, frame):
         """Обработка и детекция объектов с полной защитой от None"""
