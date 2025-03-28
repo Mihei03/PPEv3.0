@@ -39,8 +39,8 @@ class ModelHandler(QObject):
                 
             model_info = models[model_name]
             
-            if 'ppe' in model_name.lower():
-                model_info['class_names'] = ['glove', 'helmet', 'pants', 'vest']
+            # Добавляем имена классов в model_info
+            model_info['class_names'] = self._get_class_names(model_name, model_info)
             
             if not os.path.exists(model_info['pt_file']) or not os.path.exists(model_info['yaml_file']):
                 self.logger.error(f"Файлы модели {model_name} не найдены")
@@ -97,9 +97,21 @@ class ModelHandler(QObject):
             self.logger.info(f"Модель '{model_name}' успешно добавлена")
             self.models_updated.emit()
             return True
-
+            
         except Exception as e:
             self.logger.error(f"Ошибка загрузки модели: {str(e)}")
             QMessageBox.critical(None, "Ошибка", 
                                f"Не удалось добавить модель:\n{str(e)}")
             return False
+    
+    def _get_class_names(self, model_name, model_info):
+        """Получает имена классов из YAML файла или возвращает стандартные"""
+        try:
+            import yaml
+            with open(model_info['yaml_file'], 'r') as f:
+                data = yaml.safe_load(f)
+                return data.get('names', [])
+        except Exception:
+            if 'ppe' in model_name.lower():
+                return ['glove', 'helmet', 'pants', 'vest']
+            return []

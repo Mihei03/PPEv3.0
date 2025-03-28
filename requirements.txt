@@ -1,5 +1,5 @@
 mediapipe
-opencv-python
+opencv-python==4.10.0.82
 PyQt6
 ultralytics
 pyyaml

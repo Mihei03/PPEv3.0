@@ -3,26 +3,77 @@ from PyQt6.QtGui import QImage
 import cv2
 from src.utils.drawing_utils import draw_landmarks
 from utils.logger import AppLogger
+from src.detection.input_validator import InputValidator, InputType
+import os
+import numpy as np
 
 class VideoProcessor(QObject):
     update_frame_signal = pyqtSignal(QImage)
     siz_status_changed = pyqtSignal(object)
-    
+    input_error = pyqtSignal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.timer = QTimer()
         self.logger = AppLogger.get_logger()
         self.timer.timeout.connect(self._process_frame)
         self._setup_initial_state()
-        self._init_camera()
+        self.cap = None
+
+    @pyqtSlot(str, int)
+    def set_video_source(self, source: str, selected_source_type: int):
+        """Возвращает True только при успешной загрузке"""
+        self.stop_processing()
         
+        # Сброс предыдущего источника
+        if self.cap:
+            self.cap.release()
+        self.cap = None
+        self.current_image = None
+        
+        # Валидация
+        input_type, normalized_source, error_msg = InputValidator.validate_input(
+            source, selected_source_type
+        )
+        
+        if error_msg:
+            self.input_error.emit(error_msg)
+            return False
+            
+        try:
+            if input_type == InputType.CAMERA:
+                self.cap = cv2.VideoCapture(int(normalized_source))
+                
+            elif input_type == InputType.RTSP:
+                self.cap = cv2.VideoCapture(normalized_source, cv2.CAP_FFMPEG)
+                
+            elif input_type == InputType.FILE:
+                self.cap = cv2.VideoCapture(normalized_source)
+            
+            # Проверка успешности инициализации    
+            success = self.is_source_ready()
+            if not success:
+                self.input_error.emit("Не удалось инициализировать источник")
+            return success
+            
+        except Exception as e:
+            self.input_error.emit(f"Ошибка: {str(e)}")
+            return False
+        
+    def is_source_ready(self):
+        """Проверяет готовность источника"""
+        if self.current_input_type == InputType.IMAGE:
+            return self.current_image is not None
+        return self.cap is not None and self.cap.isOpened()
+
     def _setup_initial_state(self):
-        """Инициализация состояния процессора"""
+        self.cap = None
+        self.current_image = None
+        self.current_input_type = None
+        self.processing_active = False
         self.show_landmarks = True
         self.active_model_type = None
         self.model_loaded = False
-        self.siz_detected = None
-        self.processing_active = False
         self.detectors_ready = False
 
     def _init_camera(self):
@@ -69,58 +120,64 @@ class VideoProcessor(QObject):
 
     @pyqtSlot()
     def start_processing(self):
-        """Запуск обработки видео"""
-        if not self.active_model_type:
-            self.logger.warning("Активная модель не выбрана")
+        """Запуск обработки с проверкой инициализации"""
+        if not hasattr(self, 'cap') and not hasattr(self, 'current_image'):
+            self.input_error.emit("Источник не инициализирован")
             return
             
-        if not self.cap or not self.cap.isOpened():
-            self._init_camera()  # Повторная инициализация при проблемах
-            if not self.cap or not self.cap.isOpened():
-                self.logger.error("Камера недоступна")
-                return
+        if self.current_input_type == InputType.IMAGE:
+            # Для изображения обрабатываем один кадр
+            self._process_frame()
+            return
             
         if not self.timer.isActive():
             self.processing_active = True
-            self.timer.start(33)  # ~30 FPS
-            self.logger.info("Началась обработка видео")
+            self.timer.start(60)  # ~60 FPS
+            self.logger.info("Обработка видео запущена")
 
     @pyqtSlot()
     def stop_processing(self):
-        """Остановка обработки видео"""
+        """Остановка обработки"""
         if self.timer.isActive():
             self.timer.stop()
-            self.processing_active = False
-            self.logger.info("Обработка видео остановлена")
+        self.processing_active = False
+        self.logger.info("Обработка видео остановлена")
 
     def _process_frame(self):
-        """Обработка кадра с переподключением камеры"""
+        """Обработка кадра с проверкой источника"""
         try:
-            # Если камера не инициализирована, пытаемся подключиться
-            if not self.cap or not self.cap.isOpened():
-                self._init_camera()
-                if not self.cap or not self.cap.isOpened():
-                    self.logger.warning("Камера недоступна, пропускаем кадр")
-                    QTimer.singleShot(1000, self._process_frame)  # Повтор через 1 сек
-                    return
-
-            # Чтение кадра
-            ret, frame = self.cap.read()
-            if not ret:
-                self.logger.warning("Ошибка захвата кадра, переподключаем камеру")
-                self.cap.release()
-                self.cap = None
-                QTimer.singleShot(1000, self._process_frame)  # Повтор через 1 сек
+            if self.current_input_type == InputType.IMAGE:
+                if self.current_image is not None:
+                    processed = self._process_detections(self.current_image.copy())
+                    self._emit_frame(processed)
                 return
-
-            # Обработка кадра
-            processed_frame = self._process_detections(frame)
-            self._emit_frame(processed_frame)
-
+                
+            if not self.cap or not self.cap.isOpened():
+                self.logger.warning("Источник не готов")
+                return
+                
+            ret, frame = self.cap.read()
+            if ret:
+                processed = self._process_detections(frame)
+                self._emit_frame(processed)
+            elif self.current_input_type == InputType.FILE:
+                self.stop_processing()
+                
         except Exception as e:
-            self.logger.error(f"Критическая ошибка обработки: {str(e)}")
+            self.logger.error(f"Ошибка обработки: {str(e)}")
             self.stop_processing()
 
+    def _reconnect_source(self):
+        """Попытка переподключения к источнику"""
+        if self.current_input_type == InputType.CAMERA and self.cap:
+            index = int(self.cap.get(cv2.CAP_PROP_POS_AVI_RATIO))
+            self.cap.release()
+            self.cap = cv2.VideoCapture(index)
+            if self.cap.isOpened():
+                self.logger.info(f"Успешно переподключились к камере {index}")
+            else:
+                self.logger.error(f"Не удалось переподключиться к камере {index}")
+                self.stop_processing()
 
     def _process_detections(self, frame):
         """Обработка и детекция объектов с полной защитой от None"""
@@ -227,13 +284,13 @@ class VideoProcessor(QObject):
         return frame
 
     def _emit_frame(self, frame):
-        """Конвертация и отправка кадра в UI"""
+        """Безопасная отправка кадра в UI"""
         try:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb_frame.shape
+            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb_image.shape
             bytes_per_line = ch * w
-            q_img = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-            self.update_frame_signal.emit(q_img)
+            qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+            self.update_frame_signal.emit(qt_image)
         except Exception as e:
             self.logger.error(f"Ошибка преобразования кадра: {str(e)}")
 
@@ -248,3 +305,4 @@ class VideoProcessor(QObject):
     def toggle_landmarks(self, state):
         """Переключение отображения ключевых точек"""
         self.show_landmarks = state
+        self.logger.info(f"Отображение ключевых точек: {'включено' if state else 'выключено'}")

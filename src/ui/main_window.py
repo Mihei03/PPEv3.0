@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from PyQt6.QtCore import pyqtSlot, QTimer
 from .model_handler import ModelHandler
 from .video_processor import VideoProcessor
@@ -9,7 +9,6 @@ from src.detection.siz_detection import SIZDetector
 from .ui_layout import MainLayout
 from utils.logger import AppLogger
 import cv2
-from config import Config
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -28,24 +27,11 @@ class MainWindow(QMainWindow):
         self.processing_active = False
         self.statusBar().showMessage("Выберите модель и нажмите Start")
 
-    def _setup_status_bar(self):
-        """Настройка статус-бара с начальным сообщением"""
-        self.statusBar().showMessage("Выберите модель для начала работы")
-        self.current_model = None
-        self.current_siz_status = None
-
-
     def _init_ui(self):
         self.setWindowTitle("Система обнаружения СИЗ")
         self.setGeometry(100, 100, 800, 600)
         self.main_layout = MainLayout(self)  # Явно передаем self как parent
         self.setCentralWidget(self.main_layout)
-
-    def _init_status_bar(self):
-        """Инициализация статус-бара с постоянным сообщением"""
-        self.logger.info("Готов к работе")
-        self.statusBar().showMessage("Готов к работе")
-        self.current_siz_status = None
 
     def _init_detectors(self):
         self.yolo = YOLODetector()
@@ -63,13 +49,17 @@ class MainWindow(QMainWindow):
         # Подключение сигналов от layout
         self.main_layout.start_processing.connect(self._on_start_processing)
         self.main_layout.stop_processing.connect(self._on_stop_processing)
-        self.main_layout.toggle_landmarks.connect(self.video_processor.toggle_landmarks)
+        self.main_layout.toggle_landmarks.connect(
+            lambda state: (self.video_processor.toggle_landmarks(state),
+                self.logger.info(f"Landmarks visibility: {state}"))
+        )
         self.main_layout.model_selected.connect(self._on_model_selected)
-        
-        # Подключение сигналов от ModelHandler
-        self.model_handler.model_loading.connect(self._on_model_loading)
-        self.model_handler.model_loaded.connect(self._on_model_loaded)
         self.main_layout.model_selector.load_model_requested.connect(self._load_new_model)
+
+        # Подключение сигналов от ModelHandler (ИСПРАВЛЕНО)
+        self.model_handler.model_loaded.connect(self._on_model_loaded)  # Только один слот
+        self.model_handler.model_loading.connect(self._on_model_loading)
+        self.model_handler.models_updated.connect(self._refresh_models_list)
         
         # Подключение сигналов к layout
         self.video_processor.update_frame_signal.connect(
@@ -79,85 +69,126 @@ class MainWindow(QMainWindow):
             self._update_siz_status
         )
 
-    @pyqtSlot()
-    def _load_new_model(self):
-        """Обработка добавления новой модели"""
-        if self.model_handler.add_model_from_folder():
-            models = self.model_handler.refresh_models_list()
-            self.main_layout.model_selector.refresh_models(models)
-            
-            # Проверяем камеру после загрузки
-            if not self._check_camera():
-                self.statusBar().showMessage("Модель добавлена! Камера недоступна", 5000)
-            else:
-                self.statusBar().showMessage("Модель успешно добавлена", 5000)
-
-    def _check_camera(self):
-        """Проверка камеры с сообщением в статус бар"""
-        try:
-            cap = cv2.VideoCapture(Config.CAMERA_INDEX)
-            if cap.isOpened():
-                cap.release()
-                return True
-            
-            self.statusBar().showMessage("Внимание: камера не подключена", 5000)
-            return False
-        except Exception as e:
-            self.logger.error(f"Ошибка проверки камеры: {str(e)}")
-            return False
-           
-    @pyqtSlot()
-    def _on_start_processing(self):
-        """Обработка нажатия Start"""
-        if not self.current_model:
-            self.statusBar().showMessage("Ошибка: модель не выбрана!", 3000)
-            return
-            
-        self.processing_active = True
-        self.video_processor.start_processing()
-        self.statusBar().showMessage(
-            f"Обработка запущена | Модель: {self.current_model} | Статус СИЗ: проверка..."
+        # Подключения для управления источником видео
+        self.main_layout.control_panel.video_source_changed.connect(
+            self._on_video_source_changed
+        )
+        self.video_processor.input_error.connect(
+            self._on_input_error
         )
 
     @pyqtSlot()
+    def _load_new_model(self):
+        """Обработчик добавления новой модели"""
+        if self.model_handler.add_model_from_folder():
+            models = self.model_handler.refresh_models_list()
+            self.main_layout.model_selector.refresh_models(models)
+            self.statusBar().showMessage("Модель успешно добавлена", 3000)
+
+    @pyqtSlot(str, int)
+    def _on_video_source_changed(self, source: str, source_type: int):
+        """Обработчик изменения источника с управлением кнопкой"""
+        if not source:
+            self.main_layout.control_panel.set_start_button_enabled(False)
+            return
+            
+        success = self.video_processor.set_video_source(source, source_type)
+        self.main_layout.control_panel.set_start_button_enabled(success)
+        
+        if success:
+            self.statusBar().showMessage(f"Источник готов: {source}", 3000)
+        else:
+            self.statusBar().showMessage("Ошибка источника - исправьте ввод", 3000)
+            
+    @pyqtSlot(str)
+    def _on_input_error(self, error_msg):
+        """Улучшенные сообщения об ошибках"""
+        QMessageBox.warning(self, "Ошибка источника", error_msg)
+        self.statusBar().showMessage(error_msg, 5000)
+        self.main_layout.control_panel.set_start_button_enabled(False)
+
+    @pyqtSlot(bool)
+    def _enable_start_button(self, enabled):
+        """Активирует/деактивирует кнопку Start"""
+        self.main_layout.control_panel.set_start_button_enabled(enabled and self.current_model is not None)
+           
+    @pyqtSlot()
+    def _on_start_processing(self):
+        """Запуск только при успешной проверке"""
+        if not self.current_model:
+            self.statusBar().showMessage("Сначала выберите модель!", 3000)
+            return
+            
+        # Дополнительная проверка перед стартом
+        if not self.video_processor.is_source_ready():
+            self.statusBar().showMessage("Источник не готов!", 3000)
+            self.main_layout.control_panel.set_start_button_enabled(False)
+            return
+            
+        self.processing_active = True
+        self.main_layout.control_panel.set_processing_state(True)
+        self.video_processor.start_processing()
+        self.statusBar().showMessage("Обработка запущена", 3000)
+
+    @pyqtSlot()
     def _on_stop_processing(self):
-        """Обработка нажатия Stop"""
+        """Обработка остановки обработки"""
         self.processing_active = False
+        self.main_layout.control_panel.set_processing_state(False)
         self.video_processor.stop_processing()
         
-        # Обновляем статус после остановки
         status_message = f"Обработка остановлена | Модель: {self.current_model}"
         if self.current_siz_status is not None:
-            status_message += f" | Последний статус СИЗ: {'обнаружены' if self.current_siz_status else 'отсутствуют!'}"
+            status_message += f" | Статус СИЗ: {'OK' if self.current_siz_status else 'Ошибка'}"
         self.statusBar().showMessage(status_message)
 
-    @pyqtSlot(str)
-    def _handle_model_selection(self, model_name):
-        """Обработка выбора модели из селектора"""
-        self.statusBar().showMessage(f"Выбрана модель: {model_name}")
-        self.model_handler.load_model(model_name)
+    @pyqtSlot()
+    def _refresh_models_list(self):
+        """Обновляет список моделей в интерфейсе"""
+        try:
+            # Получаем обновленный список моделей
+            models = self.model_handler.refresh_models_list()
+            
+            # Обновляем выпадающий список в интерфейсе
+            self.main_layout.model_selector.refresh_models(models)
+            
+            # Обновляем статус в статус-баре
+            if models:
+                self.statusBar().showMessage(f"Доступно моделей: {len(models)}", 3000)
+            else:
+                self.statusBar().showMessage("Модели не найдены! Добавьте модель через меню", 3000)
+                self.main_layout.control_panel.set_start_button_enabled(False)
+                
+        except Exception as e:
+            self.logger.error(f"Ошибка обновления списка моделей: {str(e)}")
+            self.statusBar().showMessage("Ошибка загрузки списка моделей", 3000)
 
     @pyqtSlot(str)
-    def _on_model_loading(self, model_name):
+    def _on_model_loading(self, model_name: str):
         """Обновление статуса при загрузке модели"""
-        self.statusBar().showMessage(f"Загружаем модель: {model_name}...")
+        self.statusBar().showMessage(f"Загрузка модели {model_name}...")
 
     @pyqtSlot(str, dict)
-    def _on_model_loaded(self, model_name, model_info):
-        """Обновление статуса после успешной загрузки модели"""
-        if model_info:  # Проверяем что модель действительно загружена
-            self.current_model = model_name
-            success = self.video_processor.load_model(model_name, model_info)
-            if success:
-                self.statusBar().showMessage(
-                    f"Модель '{model_name}' успешно загружена. Нажмите Start",
-                    3000
-                )
-            else:
-                self.statusBar().showMessage(
-                    f"Ошибка инициализации модели '{model_name}'",
-                    3000
-                )
+    def _on_model_loaded(self, model_name: str, model_info: dict):
+        """Обработка успешной загрузки модели"""
+        self.current_model = model_name
+        success = self.video_processor.load_model(model_name, model_info)
+        
+        if success:
+            self.statusBar().showMessage(
+                f"Модель '{model_name}' успешно загружена. Нажмите Start",
+                3000
+            )
+            # Активируем кнопку через метод ControlPanel
+            if hasattr(self.main_layout, 'control_panel'):
+                self.main_layout.control_panel.set_start_button_enabled(True)
+        else:
+            self.statusBar().showMessage(
+                f"Ошибка инициализации модели '{model_name}'",
+                3000
+            )
+            if hasattr(self.main_layout, 'control_panel'):
+                self.main_layout.control_panel.set_start_button_enabled(False)
 
     @pyqtSlot(object)
     def _update_siz_status(self, status):
@@ -194,13 +225,6 @@ class MainWindow(QMainWindow):
         self.current_siz_status = detected
         status = f"Модель: {self.current_model} | СИЗ: {'обнаружены' if detected else 'отсутствуют!'}"
         self.statusBar().showMessage(status)
-
-    def _restore_siz_status(self):
-        """Восстановление статуса СИЗ после сообщения о загрузке"""
-        if self.current_siz_status is not None:
-            self._update_status_bar(self.current_siz_status)
-        else:
-            self.statusBar().showMessage(f"Модель '{self.current_model}' готова к работе")
             
     def _load_initial_models(self):
         """Загрузка списка доступных моделей при старте"""
