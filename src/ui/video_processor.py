@@ -184,11 +184,11 @@ class VideoProcessor(QObject):
         frame = frame.copy()
         
         try:
-            # Детекция ключевых точек
-            face_results = self.face.detect(frame) if (self.show_landmarks and hasattr(self.face, 'detect')) else None
-            pose_results = self.pose.detect(frame) if (self.show_landmarks and hasattr(self.pose, 'detect')) else None
+            # Всегда выполняем детекцию ключевых точек, но отображаем только если show_landmarks=True
+            face_results = self.face.detect(frame) if hasattr(self.face, 'detect') else None
+            pose_results = self.pose.detect(frame) if hasattr(self.pose, 'detect') else None
 
-            # Детекция объектов YOLO с защитой от ошибок
+            # Детекция объектов YOLO
             boxes = None
             if self.active_model_type and hasattr(self.yolo, 'detect'):
                 try:
@@ -201,7 +201,7 @@ class VideoProcessor(QObject):
             if boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0:
                 class_names = self.yolo.class_names.get(self.active_model_type, [])
                 
-                # Проверка соответствия СИЗ с защитой от ошибок
+                # Проверка соответствия СИЗ
                 statuses = []
                 try:
                     statuses = self.siz.check_items(boxes, pose_results, face_results, frame.shape, class_names)
@@ -209,19 +209,15 @@ class VideoProcessor(QObject):
                     self.logger.error(f"Compliance check error: {str(e)}")
                     statuses = [False] * len(boxes.xyxy)
                 
-                # Отправка статуса
                 self.siz_status_changed.emit(statuses if statuses else False)
-                
-                # Отрисовка детекций
                 frame = self._draw_detections_with_labels(frame, boxes, statuses, class_names)
             else:
                 self.siz_status_changed.emit("nothing")
 
-            # Отрисовка ключевых точек
-            if self.show_landmarks:
+            # Отрисовка ключевых точек (только если включено)
+            if self.show_landmarks and (pose_results or face_results):
                 try:
-                    if pose_results or face_results:
-                        draw_landmarks(frame, pose_results, face_results)
+                    draw_landmarks(frame, pose_results, face_results)
                 except Exception as e:
                     self.logger.error(f"Landmark drawing error: {str(e)}")
 
