@@ -88,9 +88,13 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str, int)
     def _on_video_source_changed(self, source: str, source_type: int):
         """Обработчик изменения источника с управлением кнопкой"""
-        if not source:
-            self.main_layout.control_panel.set_start_button_enabled(False)
-            return
+        if self.main_layout.control_panel.source_type.currentIndex() == 2:  # RTSP поток
+            rtsp_data = self.main_layout.control_panel.get_current_rtsp()
+            if rtsp_data:
+                url = rtsp_data.get("url", "")
+            if not source:
+                self.main_layout.control_panel.set_start_button_enabled(False)
+                return
             
         success = self.video_processor.set_video_source(source, source_type)
         self.main_layout.control_panel.set_start_button_enabled(success)

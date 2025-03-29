@@ -2,6 +2,7 @@
 /models/ppe/
 /models/glass/
 /logs/
+/config/
 # Игнорировать файлы
 *.pt
 *.yaml
