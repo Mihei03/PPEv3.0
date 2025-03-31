@@ -14,7 +14,16 @@ class ModelHandler(QObject):
     def __init__(self, parent=None): 
         super().__init__(parent)
         self.logger = AppLogger.get_logger()
-        
+        self._current_model = None
+        self._model_loaded = False 
+
+    def current_model(self):
+        """Возвращает текущую выбранную модель"""
+        return self._current_model
+    
+    def is_model_loaded(self):
+        return self._model_loaded and bool(self._current_model)
+    
     def refresh_models_list(self):
         """Возвращает список доступных моделей с проверкой директории"""
         if not os.path.exists(Config.MODELS_ROOT):
@@ -26,6 +35,7 @@ class ModelHandler(QObject):
         
     def load_model(self, model_name):
         """Загрузка выбранной модели"""
+        self._model_activated = False
         if not model_name or model_name == "Нет доступных моделей":
             return False
             
@@ -35,23 +45,28 @@ class ModelHandler(QObject):
             
             if model_name not in models:
                 self.logger.error(f"Модель {model_name} не найдена")
+                self._current_model = None
                 raise ValueError(f"Модель {model_name} не найдена")
                 
             model_info = models[model_name]
-            
-            # Добавляем имена классов в model_info
             model_info['class_names'] = self._get_class_names(model_name, model_info)
             
             if not os.path.exists(model_info['pt_file']) or not os.path.exists(model_info['yaml_file']):
                 self.logger.error(f"Файлы модели {model_name} не найдены")
+                self._current_model = None
                 raise FileNotFoundError(f"Файлы модели {model_name} не найдены")
             
+            self._current_model = model_name
+            self._model_activated = True  # Устанавливаем флаг только при успешной загрузке
             self.model_loaded.emit(model_name, model_info)
             return True
-            
         except Exception as e:
+            self._model_loaded = False
             self.logger.error(f"Ошибка загрузки модели: {str(e)}")
             return False
+
+    def is_model_activated(self):
+        return self._model_activated and bool(self._current_model)
 
     def add_model_from_folder(self):
         """Добавление модели через диалог выбора папки"""

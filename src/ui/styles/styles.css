@@ -1,0 +1,326 @@
+/* Базовые стили */
+QWidget {
+    font-family: 'Arial';
+    font-size: 12px;
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Надпись "Модели:" */
+QLabel#modelLabel {
+    font-size: 12px;
+    padding: 0 5px 0 0;
+    color: #000000;
+}
+
+/* Темная тема */
+.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+.dark-mode QWidget {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+.dark-mode QLabel#modelLabel {
+    color: #ffffff;
+}
+
+/* Заголовок окна */
+QMainWindow {
+    background-color: #f0f0f0;
+    color: #000000;
+}
+
+.dark-mode QMainWindow {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+QMainWindow::title {
+    color: #000000;
+    background-color: transparent;
+    padding-left: 10px;
+}
+
+.dark-mode QMainWindow::title {
+    color: #ffffff;
+}
+
+/* Кнопки заголовка окна */
+QMainWindow QWidget#qt_window_titlebar {
+    background-color: transparent;
+}
+
+/* Основные кнопки */
+QPushButton {
+    border-radius: 3px;
+    padding: 3px 6px;
+    min-width: 50px;
+    min-height: 22px;
+    border: 1px solid #d0d0d0;
+}
+
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+
+QPushButton:pressed {
+    background-color: #d0d0d0;
+}
+
+/* Кнопка Start/Stop */
+QPushButton#startButton {
+    background-color: #6c757d; /* Серый по умолчанию */
+    color: white;
+}
+
+QPushButton#startButton[state="disabled"] {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+
+QPushButton#startButton[state="enabled"] {
+    background-color: #28a745; /* Зелёный когда разрешён */
+}
+
+QPushButton#startButton[state="enabled"]:hover {
+    background-color: #218838;
+}
+
+QPushButton#startButton[state="enabled"]:pressed {
+    background-color: #1e7e34;
+}
+
+QPushButton#startButton[state="stop"] {
+    background-color: #dc3545;
+    color: white;
+}
+
+QPushButton#startButton[state="stop"]:hover {
+    background-color: #c82333;
+}
+
+/* Кнопка переключения темы */
+QPushButton.theme-toggle {
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    padding: 3px;
+    min-width: 25px;
+    max-width: 25px;
+    min-height: 25px;
+}
+
+/* Темная тема для кнопок */
+.dark-mode QPushButton {
+    background-color: #333333;
+    color: #ffffff;
+    border-color: #555555;
+}
+
+.dark-mode QPushButton:hover {
+    background-color: #444444;
+}
+
+.dark-mode QPushButton:pressed {
+    background-color: #555555;
+}
+
+/* Поле ввода */
+QLineEdit, QTextEdit {
+    border-radius: 3px;
+    padding: 3px;
+    min-height: 22px;
+}
+
+QTextEdit {
+    min-height: 60px;
+}
+
+.dark-mode QLineEdit,
+.dark-mode QTextEdit {
+    border: 1px solid #555555;
+    background-color: #333333;
+    color: #ffffff;
+}
+
+/* Выпадающие списки */
+QComboBox {
+    border-radius: 3px;
+    padding: 3px;
+    min-width: 90px;
+    min-height: 22px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 1px;
+    border-left-color: #d0d0d0;
+    border-left-style: solid;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background-color: #f0f0f0;
+}
+
+QComboBox::down-arrow {
+    image: url(data/images/down_arrow.svg);
+    width: 10px;
+    height: 10px;
+}
+
+.dark-mode QComboBox {
+    border: 1px solid #555555;
+    background-color: #333333;
+    color: #ffffff;
+}
+
+.dark-mode QComboBox::drop-down {
+    border-left-color: #555555;
+    background-color: #444444;
+}
+
+/* Чекбоксы */
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    border: 1px solid #d0d0d0;
+    background: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background: #dc3545;
+    border: 1px solid #c82333;
+}
+
+.dark-mode QCheckBox::indicator {
+    border: 1px solid #555555;
+    background: #333333;
+}
+
+.dark-mode QCheckBox::indicator:checked {
+    background: #dc3545;
+    border: 1px solid #c82333;
+}
+
+/* Таблицы */
+QTableWidget {
+    border-radius: 4px;
+    border: 1px solid #d0d0d0;
+    background-color: #ffffff;
+    gridline-color: #e0e0e0;
+    alternate-background-color: #f8f8f8;
+}
+
+QTableWidget::item {
+    padding: 5px;
+    text-align: center;
+}
+
+QHeaderView::section {
+    background-color: #f0f0f0;
+    padding: 5px;
+    border: none;
+    text-align: center;
+}
+
+.dark-mode QTableWidget {
+    border: 1px solid #555555;
+    background-color: #333333;
+    gridline-color: #444444;
+}
+
+.dark-mode QHeaderView::section {
+    background-color: #444444;
+    color: #ffffff;
+}
+
+/* Видеодисплей */
+VideoDisplay {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+}
+
+.dark-mode VideoDisplay {
+    background-color: #000000;
+    border: 1px solid #444444;
+}
+
+/* Статус бар */
+QStatusBar {
+    border-top: 1px solid #cccccc;
+    background-color: #f0f0f0;
+    color: #000000;
+}
+
+.dark-mode QStatusBar {
+    border-top: 1px solid #444444;
+    background-color: #111111;
+    color: #ffffff;
+}
+
+/* Прокрутка */
+QScrollBar:vertical {
+    border: none;
+    background: #f0f0f0;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #c0c0c0;
+    min-height: 20px;
+    border-radius: 4px;
+}
+
+.dark-mode QScrollBar:vertical {
+    background: #444444;
+}
+
+.dark-mode QScrollBar::handle:vertical {
+    background: #666666;
+}
+
+/* Заблокированные элементы */
+QComboBox[state="disabled"],
+QLineEdit[state="disabled"],
+QPushButton[state="disabled"]:not(#startButton),
+QCheckBox[state="disabled"] {
+    background-color: #e0e0e0;
+    color: #a0a0a0;
+    border-color: #d0d0d0;
+}
+
+.dark-mode QComboBox[state="disabled"],
+.dark-mode QLineEdit[state="disabled"],
+.dark-mode QPushButton[state="disabled"]:not(#startButton),
+.dark-mode QCheckBox[state="disabled"] {
+    background-color: #333333;
+    color: #666666;
+    border-color: #444444;
+}
+
+QCheckBox[state="disabled"]::indicator {
+    background: #e0e0e0;
+    border: 1px solid #d0d0d0;
+}
+
+.dark-mode QCheckBox[state="disabled"]::indicator {
+    background: #333333;
+    border: 1px solid #444444;
+}
+
+QComboBox[state="disabled"]::drop-down {
+    background-color: #e0e0e0;
+    border-left-color: #d0d0d0;
+}
+
+.dark-mode QComboBox[state="disabled"]::drop-down {
+    background-color: #333333;
+    border-left-color: #444444;
+}

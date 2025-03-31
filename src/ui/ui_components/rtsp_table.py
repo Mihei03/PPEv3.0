@@ -16,32 +16,28 @@ class RtspTable(QTableWidget):
         header = self.horizontalHeader()
         header.setSectionsClickable(True)
         header.sectionClicked.connect(self._sort_table)
+        header.setDefaultSectionSize(150)
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setStretchLastSection(True)
         
         # Установка размеров столбцов
-        header.setMinimumSectionSize(40)
-        header.resizeSection(0, 50)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(1, 150)
-        header.setMinimumSectionSize(80)
-        header.setMaximumSectionSize(300)
-        header.resizeSection(2, 300)
-        header.setMinimumSectionSize(150)
-        header.setMaximumSectionSize(600)
-        header.resizeSection(3, 200)
-        header.setMinimumSectionSize(100)
-        header.setMaximumSectionSize(800)
+        self.setColumnWidth(0, 50)  # №
+        self.setColumnWidth(1, 150)  # Имя
+        self.setColumnWidth(2, 300)  # Ссылка
+        self.setColumnWidth(3, 200)  # Комментарий
         
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
-        # Включаем перенос текста
+        # Включаем перенос текста и выравнивание
         self.setWordWrap(True)
         self.setTextElideMode(Qt.TextElideMode.ElideNone)
-        self.verticalHeader().setDefaultSectionSize(24)
+        self.verticalHeader().setDefaultSectionSize(40)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.verticalHeader().setVisible(False)
+        
+        # Минимальный размер таблицы
+        self.setMinimumSize(700, 300)
 
     def _sort_table(self, column):
         if self._last_sorted_column == column:
@@ -67,7 +63,7 @@ class RtspTable(QTableWidget):
             # Настройка отображения текста
             for item in [num_item, name_item, url_item, comment_item]:
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             
             self.setItem(row, 0, num_item)
             self.setItem(row, 1, name_item)

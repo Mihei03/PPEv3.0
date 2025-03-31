@@ -2,8 +2,10 @@ import sys
 import os
 import cv2
 from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import QFile, QTextStream
 from config import Config
 from utils.logger import AppLogger
+from PyQt6.QtGui import QIcon
 
 def check_camera():
     """Проверка доступности камеры с записью в лог"""
@@ -19,6 +21,21 @@ def check_camera():
     except Exception as e:
         logger.error(f"Ошибка проверки камеры: {str(e)}")
         return False
+
+def load_stylesheet():
+    """Загрузка стилей из файла в папке styles"""
+    try:
+        # Получаем путь к директории, где находится main.py
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        style_path = os.path.join(base_dir, 'ui', 'styles', 'styles.css')
+        
+        style_file = QFile(style_path)
+        if style_file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
+            stream = QTextStream(style_file)
+            return stream.readAll()
+    except Exception as e:
+        AppLogger.get_logger().error(f"Ошибка загрузки стилей: {str(e)}")
+    return ""
 
 def check_models():
     """Проверка наличия моделей с записью в лог"""
@@ -52,7 +69,12 @@ def main():
     sys.path.append(root_dir)
     
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon('data/images/app_icon.png'))
     
+    stylesheet = load_stylesheet()
+    if stylesheet:
+        app.setStyleSheet(stylesheet)
+        
     # Проверки (только для логирования)
     check_camera()
     check_models()

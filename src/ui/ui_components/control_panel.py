@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (QCheckBox, QPushButton, QHBoxLayout, QWidget, QDialog,
                             QLineEdit, QComboBox, QLabel, QFileDialog, QMessageBox)
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QColor
 from detection.input_validator import InputValidator
 from utils.logger import AppLogger 
 from ui.ui_components.rtsp_storage import RtspStorage
@@ -19,8 +20,13 @@ class ControlPanel(QWidget):
         self.rtsp_storage = RtspStorage()  # Инициализируем ПЕРЕД _setup_ui()
         self._start_button_enabled = False
         self._processing_active = False
+        self.model_handler = None
         self._setup_ui()  # Вызываем после инициализации rtsp_storage
-        
+    
+    def set_model_handler(self, handler):
+        """Устанавливает ссылку на ModelHandler"""
+        self.model_handler = handler
+
     def _setup_ui(self):
         self.source_type = QComboBox()
         self.source_type.addItems(["Камера", "Видеофайл", "RTSP поток"])
@@ -29,37 +35,44 @@ class ControlPanel(QWidget):
         
         self.browse_btn = QPushButton("Обзор")
         self.browse_btn.clicked.connect(self._browse_file)
+        self.browse_btn.setProperty("class", "browse-btn")
         
-        # RTSP элементы управления
+        # RTSP элементы
         self.rtsp_combo = QComboBox()
         self._update_rtsp_combo()
         self.rtsp_combo.setToolTip("URL будет взят из выбранного RTSP потока")
+        
         self.add_rtsp_btn = QPushButton("+")
         self.add_rtsp_btn.setFixedWidth(30)
         self.add_rtsp_btn.setToolTip("Добавить RTSP поток")
         self.add_rtsp_btn.clicked.connect(self._show_rtsp_dialog)
+        self.add_rtsp_btn.setProperty("class", "add-rtsp-btn")
         
-        rtsp_layout = QHBoxLayout()
-        rtsp_layout.addWidget(self.rtsp_combo)
-        rtsp_layout.addWidget(self.add_rtsp_btn)
-        
+        # Чекбокс
         self.landmarks_check = QCheckBox("Показывать ключевые точки")
         self.landmarks_check.setChecked(True)
         self.landmarks_check.stateChanged.connect(
             lambda state: self.toggle_landmarks.emit(state == Qt.CheckState.Checked.value)
         )
         
+        # Кнопки Start/Stop
         self.start_btn = QPushButton("Start")
-        self.start_btn.setEnabled(False)
+        self.start_btn.setObjectName("startButton")
+        self.start_btn.setProperty("state", "disabled")
         
+        # Layout
         layout = QHBoxLayout(self)
-        layout.addWidget(QLabel("Источник:"))
-        layout.addWidget(self.source_type)
-        layout.addWidget(self.source_input)
-        layout.addWidget(self.browse_btn)
-        layout.addLayout(rtsp_layout)
-        layout.addWidget(self.landmarks_check)
-        layout.addWidget(self.start_btn)
+        layout.setSpacing(10)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        layout.addWidget(QLabel("Источник:"), stretch=1)
+        layout.addWidget(self.source_type, stretch=2)
+        layout.addWidget(self.source_input, stretch=4)
+        layout.addWidget(self.browse_btn, stretch=1)
+        layout.addWidget(self.rtsp_combo, stretch=3)
+        layout.addWidget(self.add_rtsp_btn, stretch=1)
+        layout.addWidget(self.landmarks_check, stretch=2)
+        layout.addWidget(self.start_btn, stretch=1)
         
         self.source_type.currentIndexChanged.connect(self._update_source_type)
         self.start_btn.clicked.connect(self._on_start_stop)
@@ -67,6 +80,17 @@ class ControlPanel(QWidget):
         
         self._update_source_type(0)
     
+    def _setup_button_animation(self, button):
+        """Настраивает анимацию для кнопки"""
+        button.setProperty("baseColor", QColor("#6c757d"))
+        button.setProperty("hoverColor", QColor("#5a6268"))
+        button.setProperty("pressedColor", QColor("#4e555b"))
+        
+        animation = QPropertyAnimation(button, b"color")
+        animation.setDuration(200)
+        animation.setEasingCurve(QEasingCurve.Type.OutQuad)
+        button.setGraphicsEffect(animation)
+
     def _update_rtsp_combo(self):
         """Обновляет список RTSP в комбобоксе"""
         self.rtsp_combo.clear()
@@ -96,26 +120,42 @@ class ControlPanel(QWidget):
                 self.source_input.setVisible(False)  # Скрываем поле ввода для RTSP
 
     def set_start_button_enabled(self, enabled: bool):
-        """Устанавливает состояние кнопки Start"""
-        if self._processing_active:
-            self.start_btn.setEnabled(True)
-        else:
-            self.start_btn.setEnabled(enabled)
-            self.start_btn.setStyleSheet(
-                "background-color: #4CAF50;" if enabled 
-                else "background-color: #cccccc;"
-            )
+        """Обновляет состояние кнопки Start"""
+        self._start_button_enabled = enabled
+        state = "enabled" if enabled else "disabled"
+        self.start_btn.setProperty("state", state)
+        self.start_btn.style().unpolish(self.start_btn)
+        self.start_btn.style().polish(self.start_btn)
+        self.update()
     
     def set_processing_state(self, active: bool):
-        """Блокировка интерфейса во время обработки"""
+        """Блокировка/разблокировка элементов при старте/стопе"""
         self._processing_active = active
-        self.source_type.setEnabled(not active)
-        self.source_input.setEnabled(not active)
-        self.browse_btn.setEnabled(not active)
-        self.rtsp_combo.setEnabled(not active)
-        self.add_rtsp_btn.setEnabled(not active)
+        
+        # Список элементов для блокировки
+        widgets_to_disable = [
+            self.source_type,
+            self.source_input,
+            self.browse_btn,
+            self.rtsp_combo,
+            self.add_rtsp_btn,
+            self.landmarks_check
+        ]
+        
+        # Блокируем/разблокируем элементы и устанавливаем соответствующие свойства
+        for widget in widgets_to_disable:
+            widget.setEnabled(not active)
+            widget.setProperty("state", "disabled" if active else "enabled")
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+            widget.update()
+        
+        # Обновляем кнопку Start/Stop
         self.start_btn.setText("Stop" if active else "Start")
-        self.start_btn.setEnabled(True)
+        state = "stop" if active else ("enabled" if self._start_button_enabled else "disabled")
+        self.start_btn.setProperty("state", state)
+        self.start_btn.style().unpolish(self.start_btn)
+        self.start_btn.style().polish(self.start_btn)
 
     def is_start_button_enabled(self) -> bool:
         """Возвращает текущее состояние кнопки Start"""
@@ -164,12 +204,17 @@ class ControlPanel(QWidget):
         if self._processing_active:
             self.stop_processing.emit()
         else:
+            # Проверяем модель через handler
+            if not self.model_handler or not self.model_handler.current_model:
+                QMessageBox.warning(self, "Ошибка", "Сначала выберите модель")
+                return
+                
             source_type = self.source_type.currentIndex()
             
             if source_type == 2:  # RTSP поток
                 rtsp_data = self.get_current_rtsp()
                 if not rtsp_data or not rtsp_data.get("url"):
-                    QMessageBox.warning(self, "Ошибка", " RTSP не выбран")
+                    QMessageBox.warning(self, "Ошибка", "RTSP не выбран")
                     return
                 source = rtsp_data["url"]
             else:

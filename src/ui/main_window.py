@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QMainWindow, QMessageBox
-from PyQt6.QtCore import pyqtSlot, QTimer
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QPushButton, QWidget
+from PyQt6.QtCore import pyqtSlot, QSettings, Qt
 from .model_handler import ModelHandler
 from .video_processor import VideoProcessor
 from src.yolo.yolo_detector import YOLODetector
@@ -8,18 +8,36 @@ from src.detection.pose_detection import PoseDetector
 from src.detection.siz_detection import SIZDetector
 from .ui_layout import MainLayout
 from utils.logger import AppLogger
-import cv2
+from PyQt6.QtCore import QSettings
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self._init_ui()
+        self._settings = QSettings("MyCompany", "SIZDetector")
+        self._dark_mode = False
+        self.logger = AppLogger.get_logger()
+        
+        # Инициализируем основные компоненты
+        self.model_handler = ModelHandler(self)
+        self._init_ui()  # Сначала UI
         self._init_detectors()
         self._setup_connections()
         self._init_status_vars()
         self._load_initial_models()
-        self.logger = AppLogger.get_logger() 
         
+        # Применяем тему в конце
+        self._load_theme_settings()
+
+    def _load_theme_settings(self):
+        """Загружает настройки темы и применяет их"""
+        self._dark_mode = self._settings.value("dark_mode", False, type=bool)
+        self._apply_theme(self._dark_mode)
+        self._update_theme_button()
+
+    def _update_theme_button(self):
+        """Обновляет иконку кнопки темы"""
+        self._theme_btn.setText("☀️" if self._dark_mode else "🌙")
+
     def _init_status_vars(self):
         """Инициализация переменных статуса"""
         self.current_model = None
@@ -30,8 +48,19 @@ class MainWindow(QMainWindow):
     def _init_ui(self):
         self.setWindowTitle("Система обнаружения СИЗ")
         self.setGeometry(100, 100, 800, 600)
-        self.main_layout = MainLayout(self)  # Явно передаем self как parent
+        
+        # Сначала создаем main_layout
+        self.main_layout = MainLayout(self)
         self.setCentralWidget(self.main_layout)
+        
+        # Затем устанавливаем model_handler
+        self.main_layout.set_model_handler(self.model_handler)
+        
+        # Кнопка темы
+        self._theme_btn = QPushButton()
+        self._theme_btn.setProperty("class", "theme-toggle")
+        self._theme_btn.clicked.connect(self._toggle_theme)
+        self.statusBar().addPermanentWidget(self._theme_btn)
 
     def _init_detectors(self):
         self.yolo = YOLODetector()
@@ -44,17 +73,39 @@ class MainWindow(QMainWindow):
         
         self.model_handler = ModelHandler(self)
 
+    def _update_theme_btn_icon(self):
+        """Обновляет иконку кнопки в соответствии с текущей темой"""
+        self.theme_btn.setText("☀️" if self.dark_mode else "🌙")
+
+    def _toggle_theme(self):
+        """Переключает тему на противоположную"""
+        self._dark_mode = not self._dark_mode
+        self._settings.setValue("dark_mode", self._dark_mode)
+        self._apply_theme(self._dark_mode)
+        self._update_theme_button()
+
+    def _apply_theme(self, dark_mode):
+        """Применяет тему через CSS"""
+        theme_class = "dark-mode" if dark_mode else ""
+        self.setProperty("class", theme_class)
+        
+        # Обновляем стиль для всех виджетов
+        for widget in [self] + self.findChildren(QWidget):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+
     def _setup_connections(self):
         """Настройка всех соединений"""
+        if not hasattr(self, 'main_layout'):
+            self.logger.error("MainLayout not initialized!")
+            return
         # Подключение сигналов от layout
         self.main_layout.start_processing.connect(self._on_start_processing)
         self.main_layout.stop_processing.connect(self._on_stop_processing)
         self.main_layout.toggle_landmarks.connect(
-            lambda state: (self.video_processor.toggle_landmarks(state),
-                self.logger.info(f"Landmarks visibility: {state}"))
-        )
+            lambda state: self.video_processor.toggle_landmarks(state))
         self.main_layout.model_selected.connect(self._on_model_selected)
-        self.main_layout.model_selector.load_model_requested.connect(self._load_new_model)
+        self.main_layout.load_model_requested.connect(self._load_new_model)
 
         # Подключение сигналов от ModelHandler (ИСПРАВЛЕНО)
         self.model_handler.model_loaded.connect(self._on_model_loaded)  # Только один слот
@@ -76,13 +127,13 @@ class MainWindow(QMainWindow):
         self.video_processor.input_error.connect(
             self._on_input_error
         )
-
+    
     @pyqtSlot()
     def _load_new_model(self):
         """Обработчик добавления новой модели"""
         if self.model_handler.add_model_from_folder():
             models = self.model_handler.refresh_models_list()
-            self.main_layout.model_selector.refresh_models(models)
+            self.main_layout.refresh_models(models)
             self.statusBar().showMessage("Модель успешно добавлена", 3000)
 
     @pyqtSlot(str, int)
@@ -118,27 +169,21 @@ class MainWindow(QMainWindow):
            
     @pyqtSlot()
     def _on_start_processing(self):
-        """Запуск только при успешной проверке"""
+        """Запуск обработки"""
         if not self.current_model:
             self.statusBar().showMessage("Сначала выберите модель!", 3000)
             return
             
-        # Дополнительная проверка перед стартом
-        if not self.video_processor.is_source_ready():
-            self.statusBar().showMessage("Источник не готов!", 3000)
-            self.main_layout.control_panel.set_start_button_enabled(False)
-            return
-            
         self.processing_active = True
-        self.main_layout.control_panel.set_processing_state(True)
+        self.main_layout.set_processing_state(True)  # Блокируем элементы
         self.video_processor.start_processing()
         self.statusBar().showMessage("Обработка запущена", 3000)
 
     @pyqtSlot()
     def _on_stop_processing(self):
-        """Обработка остановки обработки"""
+        """Остановка обработки"""
         self.processing_active = False
-        self.main_layout.control_panel.set_processing_state(False)
+        self.main_layout.set_processing_state(False)  # Разблокируем элементы
         self.video_processor.stop_processing()
         
         status_message = f"Обработка остановлена | Модель: {self.current_model}"
@@ -174,25 +219,17 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, dict)
     def _on_model_loaded(self, model_name: str, model_info: dict):
-        """Обработка успешной загрузки модели"""
-        self.current_model = model_name
-        success = self.video_processor.load_model(model_name, model_info)
-        
-        if success:
-            self.statusBar().showMessage(
-                f"Модель '{model_name}' успешно загружена. Нажмите Start",
-                3000
-            )
-            # Активируем кнопку через метод ControlPanel
-            if hasattr(self.main_layout, 'control_panel'):
-                self.main_layout.control_panel.set_start_button_enabled(True)
+        """Обработка загрузки модели"""
+        if self.video_processor.load_model(model_name, model_info):
+            self.current_model = model_name
+            self.main_layout.control_panel.set_start_button_enabled(True)
+            self.statusBar().showMessage(f"Модель '{model_name}' готова", 3000)
         else:
+            self.main_layout.control_panel.set_start_button_enabled(False)
             self.statusBar().showMessage(
                 f"Ошибка инициализации модели '{model_name}'",
                 3000
             )
-            if hasattr(self.main_layout, 'control_panel'):
-                self.main_layout.control_panel.set_start_button_enabled(False)
 
     @pyqtSlot(object)
     def _update_siz_status(self, status):
@@ -217,11 +254,10 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def _on_model_selected(self, model_name):
-        """Обработка выбора модели из селектора"""
-        self.statusBar().showMessage(f"Выбрана модель: {model_name}")
-        success = self.model_handler.load_model(model_name)
-        if not success:
-            self.statusBar().showMessage(f"Ошибка загрузки модели: {model_name}", 3000)
+        """Обработка выбора модели"""
+        self.main_layout.control_panel.set_start_button_enabled(False)
+        if model_name and model_name != "Нет доступных моделей":
+            self.model_handler.load_model(model_name)
 
     @pyqtSlot(bool)
     def _update_status_bar(self, detected):
