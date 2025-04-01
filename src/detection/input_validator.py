@@ -1,8 +1,6 @@
 from enum import Enum, auto
 from typing import Optional, Tuple
-import cv2
 import os
-from .rtsp_validator import RtspValidator  # Импорт нового модуля
 import re 
 
 class InputType(Enum):
@@ -13,7 +11,6 @@ class InputType(Enum):
     UNKNOWN = auto()
 
 class InputValidator:
-    PATH_REGEX = r'^(?:[a-zA-Z]:)?[\\/](?:[^\\/:*?"<>|\r\n]+[\\/])*[^\\/:*?"<>|\r\n]*$'
     CAMERA_REGEX = r'^\d+$'
     VIDEO_EXTENSIONS = ('.mp4', '.avi', '.mov', '.mkv')
 
@@ -23,20 +20,12 @@ class InputValidator:
         if not input_str:
             return None, None, "Введите данные источника"
 
-        # Для RTSP используем RtspValidator
-        if selected_source_type == 2:  # RTSP поток
-            is_valid, error_msg = RtspValidator.validate_rtsp_url(input_str)
-            if is_valid:
-                return InputType.RTSP, input_str, None
-            return InputType.RTSP, None, error_msg or "Неверный RTSP URL"
-
-        # Остальная валидация (камеры, файлы) остаётся без изменений
-        SOURCE_TYPES = {
+        source_types = {
             0: InputType.CAMERA,
             1: InputType.FILE,
             2: InputType.RTSP
         }
-        expected_type = SOURCE_TYPES.get(selected_source_type, InputType.UNKNOWN)
+        expected_type = source_types.get(selected_source_type, InputType.UNKNOWN)
 
         if expected_type == InputType.CAMERA:
             if not re.fullmatch(cls.CAMERA_REGEX, input_str):
@@ -50,11 +39,9 @@ class InputValidator:
                 return InputType.FILE, None, f"Поддерживаемые форматы: {', '.join(cls.VIDEO_EXTENSIONS)}"
             return InputType.FILE, input_str, None
 
-        return InputType.UNKNOWN, None, "Неизвестный тип источника"
+        if expected_type == InputType.RTSP:
+            from .rtsp_validator import RtspValidator
+            is_valid, error_msg = RtspValidator.validate_rtsp_url(input_str)
+            return (InputType.RTSP, input_str, None) if is_valid else (InputType.RTSP, None, error_msg)
 
-    @classmethod
-    def is_valid_camera_index(cls, index: int) -> bool:
-        cap = cv2.VideoCapture(index)
-        is_opened = cap.isOpened()
-        cap.release()
-        return is_opened
+        return InputType.UNKNOWN, None, "Неизвестный тип источника"

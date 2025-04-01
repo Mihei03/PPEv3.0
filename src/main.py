@@ -8,27 +8,19 @@ from utils.logger import AppLogger
 from PyQt6.QtGui import QIcon
 
 def check_camera():
-    """Проверка доступности камеры с записью в лог"""
+    """Проверка доступности камеры"""
     logger = AppLogger.get_logger()
-    try:
-        cap = cv2.VideoCapture(Config.CAMERA_INDEX)
-        if not cap.isOpened():
-            logger.warning("Камера не доступна! Приложение запустится без видеоввода")
-            return False
-        cap.release()
-        logger.info("Камера успешно подключена")
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка проверки камеры: {str(e)}")
+    cap = cv2.VideoCapture(Config.CAMERA_INDEX)
+    if not cap.isOpened():
+        logger.warning("Камера не доступна")
         return False
+    cap.release()
+    return True
 
 def load_stylesheet():
-    """Загрузка стилей из файла в папке styles"""
+    """Загрузка стилей из файла"""
     try:
-        # Получаем путь к директории, где находится main.py
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        style_path = os.path.join(base_dir, 'ui', 'styles', 'styles.css')
-        
+        style_path = os.path.join(os.path.dirname(__file__), 'ui', 'styles', 'styles.css')
         style_file = QFile(style_path)
         if style_file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
             stream = QTextStream(style_file)
@@ -44,7 +36,7 @@ def check_models():
         models = Config.get_available_models()
         if not models:
             logger.warning(f"Не найдены модели в папке: {Config.MODELS_ROOT}")
-            return False
+            return True
         logger.info(f"Найдены модели: {list(models.keys())}")
         return True
     except Exception as e:
@@ -74,10 +66,6 @@ def main():
     stylesheet = load_stylesheet()
     if stylesheet:
         app.setStyleSheet(stylesheet)
-        
-    # Проверки (только для логирования)
-    check_camera()
-    check_models()
     
     # Показать предупреждения (не блокирующие)
     show_warning_messages(app)
@@ -85,15 +73,6 @@ def main():
     try:
         from src.ui.main_window import MainWindow
         window = MainWindow()
-        
-        # Проверяем необходимые атрибуты
-        if not hasattr(window, 'video_processor'):
-            raise AttributeError("Отсутствует video_processor")
-            
-        required_methods = ['load_model', 'start_processing', 'stop_processing']
-        for method in required_methods:
-            if not hasattr(window.video_processor, method):
-                raise AttributeError(f"VideoProcessor отсутствует метод {method}")
         
         window.show()
         status_message = "Система инициализирована"

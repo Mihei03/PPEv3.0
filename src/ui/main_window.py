@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QPushButton, QWidget
-from PyQt6.QtCore import pyqtSlot, QSettings, Qt
+from PyQt6.QtCore import pyqtSlot, QSettings
 from .model_handler import ModelHandler
 from .video_processor import VideoProcessor
 from src.yolo.yolo_detector import YOLODetector
@@ -8,7 +8,6 @@ from src.detection.pose_detection import PoseDetector
 from src.detection.siz_detection import SIZDetector
 from .ui_layout import MainLayout
 from utils.logger import AppLogger
-from PyQt6.QtCore import QSettings
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,15 +16,12 @@ class MainWindow(QMainWindow):
         self._dark_mode = False
         self.logger = AppLogger.get_logger()
         
-        # Инициализируем основные компоненты
-        self.model_handler = ModelHandler(self)
-        self._init_ui()  # Сначала UI
+        # Инициализация компонентов
+        self._init_ui()
         self._init_detectors()
-        self._setup_connections()
         self._init_status_vars()
+        self._setup_connections()
         self._load_initial_models()
-        
-        # Применяем тему в конце
         self._load_theme_settings()
 
     def _load_theme_settings(self):
@@ -49,12 +45,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Система обнаружения СИЗ")
         self.setGeometry(100, 100, 800, 600)
         
-        # Сначала создаем main_layout
         self.main_layout = MainLayout(self)
         self.setCentralWidget(self.main_layout)
-        
-        # Затем устанавливаем model_handler
-        self.main_layout.set_model_handler(self.model_handler)
         
         # Кнопка темы
         self._theme_btn = QPushButton()
@@ -73,10 +65,6 @@ class MainWindow(QMainWindow):
         
         self.model_handler = ModelHandler(self)
 
-    def _update_theme_btn_icon(self):
-        """Обновляет иконку кнопки в соответствии с текущей темой"""
-        self.theme_btn.setText("☀️" if self.dark_mode else "🌙")
-
     def _toggle_theme(self):
         """Переключает тему на противоположную"""
         self._dark_mode = not self._dark_mode
@@ -89,7 +77,6 @@ class MainWindow(QMainWindow):
         theme_class = "dark-mode" if dark_mode else ""
         self.setProperty("class", theme_class)
         
-        # Обновляем стиль для всех виджетов
         for widget in [self] + self.findChildren(QWidget):
             widget.style().unpolish(widget)
             widget.style().polish(widget)
@@ -99,7 +86,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'main_layout'):
             self.logger.error("MainLayout not initialized!")
             return
-        # Подключение сигналов от layout
+            
         self.main_layout.start_processing.connect(self._on_start_processing)
         self.main_layout.stop_processing.connect(self._on_stop_processing)
         self.main_layout.toggle_landmarks.connect(
@@ -107,12 +94,10 @@ class MainWindow(QMainWindow):
         self.main_layout.model_selected.connect(self._on_model_selected)
         self.main_layout.load_model_requested.connect(self._load_new_model)
 
-        # Подключение сигналов от ModelHandler (ИСПРАВЛЕНО)
-        self.model_handler.model_loaded.connect(self._on_model_loaded)  # Только один слот
+        self.model_handler.model_loaded.connect(self._on_model_loaded)
         self.model_handler.model_loading.connect(self._on_model_loading)
         self.model_handler.models_updated.connect(self._refresh_models_list)
         
-        # Подключение сигналов к layout
         self.video_processor.update_frame_signal.connect(
             self.main_layout.video_display.update_frame
         )
@@ -120,7 +105,6 @@ class MainWindow(QMainWindow):
             self._update_siz_status
         )
 
-        # Подключения для управления источником видео
         self.main_layout.control_panel.video_source_changed.connect(
             self._on_video_source_changed
         )
@@ -139,7 +123,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str, int)
     def _on_video_source_changed(self, source: str, source_type: int):
         """Обработчик изменения источника с управлением кнопкой"""
-        if self.main_layout.control_panel.source_type.currentIndex() == 2:  # RTSP поток
+        if source_type == 2:  # RTSP поток
             rtsp_data = self.main_layout.control_panel.get_current_rtsp()
             if rtsp_data:
                 url = rtsp_data.get("url", "")
@@ -175,7 +159,7 @@ class MainWindow(QMainWindow):
             return
             
         self.processing_active = True
-        self.main_layout.set_processing_state(True)  # Блокируем элементы
+        self.main_layout.set_processing_state(True)
         self.video_processor.start_processing()
         self.statusBar().showMessage("Обработка запущена", 3000)
 
@@ -183,7 +167,7 @@ class MainWindow(QMainWindow):
     def _on_stop_processing(self):
         """Остановка обработки"""
         self.processing_active = False
-        self.main_layout.set_processing_state(False)  # Разблокируем элементы
+        self.main_layout.set_processing_state(False)
         self.video_processor.stop_processing()
         
         status_message = f"Обработка остановлена | Модель: {self.current_model}"
@@ -195,13 +179,9 @@ class MainWindow(QMainWindow):
     def _refresh_models_list(self):
         """Обновляет список моделей в интерфейсе"""
         try:
-            # Получаем обновленный список моделей
             models = self.model_handler.refresh_models_list()
-            
-            # Обновляем выпадающий список в интерфейсе
             self.main_layout.model_selector.refresh_models(models)
             
-            # Обновляем статус в статус-баре
             if models:
                 self.statusBar().showMessage(f"Доступно моделей: {len(models)}", 3000)
             else:
@@ -238,7 +218,7 @@ class MainWindow(QMainWindow):
             if status == "nothing":
                 message = "СИЗ: ничего не обнаружено!"
             elif isinstance(status, list):
-                if not status:  # Пустой список
+                if not status:
                     message = "СИЗ: не обнаружены"
                 else:
                     message = "СИЗ: все на местах" if all(status) else "СИЗ: обнаружены не все или не на своих местах!"
@@ -277,6 +257,6 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Гарантированная очистка при закрытии"""
-        self._on_stop_processing()  # Остановка обработки
-        self.video_processor.cleanup()  # Освобождение ресурсов
+        self._on_stop_processing()
+        self.video_processor.cleanup()
         super().closeEvent(event)

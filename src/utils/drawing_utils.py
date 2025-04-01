@@ -1,4 +1,3 @@
-import cv2
 import mediapipe as mp
 
 def draw_landmarks(image, pose_results, face_results):

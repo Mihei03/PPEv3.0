@@ -74,3 +74,15 @@ class RtspTable(QTableWidget):
         
         if self.rowCount() > 0:
             self.sortItems(self._last_sorted_column, self._sort_order)
+    
+    def get_selected(self):
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return None
+            
+        row = selected_items[0].row()
+        return {
+            'name': self.item(row, 1).text(),  # Колонка с именем
+            'url': self.item(row, 2).text(),    # Колонка с URL
+            'comment': self.item(row, 3).text() # Колонка с комментарием
+        }

@@ -136,6 +136,48 @@ QLineEdit, QTextEdit {
     min-height: 22px;
 }
 
+/* Поля ввода и выбора в дневной теме */
+QLineEdit, QTextEdit {
+    border: 1px solid #a0a0a0;
+    background-color: #ffffff;
+    border-radius: 3px;
+    padding: 3px;
+    min-height: 22px;
+}
+
+QComboBox {
+    border: 1px solid #a0a0a0;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 3px 8px;
+    min-height: 22px;
+    color: #000000;
+    selection-background-color: #0078d7;
+    selection-color: white;
+}
+
+
+QComboBox:hover {
+    border-color: #707070;
+    background-color: #f8f8f8;
+}
+
+/* Стрелка выпадающего списка */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 24px;
+    border-left: 1px solid #a0a0a0;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background-color: #f0f0f0;
+}
+
+.dark-mode QComboBox:hover {
+    border-color: #707070;
+    background-color: #3a3a3a;
+}
+
 QTextEdit {
     min-height: 60px;
 }
@@ -147,41 +189,67 @@ QTextEdit {
     color: #ffffff;
 }
 
-/* Выпадающие списки */
-QComboBox {
-    border-radius: 3px;
-    padding: 3px;
-    min-width: 90px;
-    min-height: 22px;
+/* Выпадающая часть списка */
+QComboBox QAbstractItemView {
+    border: 1px solid #a0a0a0;
+    border-radius: 8px;
+    background-color: white;
+    color: #000000;
+    selection-background-color: #0078d7;
+    selection-color: white;
+    padding: 4px;
+    margin: 2px 0 0 0;
+    outline: none;
 }
 
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 20px;
-    border-left-width: 1px;
-    border-left-color: #d0d0d0;
-    border-left-style: solid;
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
-    background-color: #f0f0f0;
-}
 
 QComboBox::down-arrow {
     image: url(data/images/down_arrow.svg);
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
 }
-
+/* Темная тема для выпадающих списков */
 .dark-mode QComboBox {
     border: 1px solid #555555;
     background-color: #333333;
     color: #ffffff;
 }
 
+.dark-mode QComboBox QAbstractItemView {
+    border: 1px solid #555555;
+    background-color: #3a3a3a;
+    color: #ffffff;
+}
+
+/* Убираем стандартные углы у выпадающего списка */
+QComboBox QAbstractItemView::item {
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #000000;
+}
+QComboBox QAbstractItemView::item:hover {
+    background-color: #e0e0e0;
+    color: #000000;  /* Явно задаём чёрный цвет текста при наведении */
+}
+
+.dark-mode QComboBox QAbstractItemView::item {
+    color: #ffffff;
+}
+
+.dark-mode QComboBox QAbstractItemView::item:hover {
+    background-color: #444444;
+    color: #ffffff;
+}
 .dark-mode QComboBox::drop-down {
     border-left-color: #555555;
     background-color: #444444;
+}
+/* Подсветка при фокусе */
+QLineEdit:focus, 
+QTextEdit:focus, 
+QComboBox:focus {
+    border: 1px solid #0078d7;
+    background-color: #ffffff;
 }
 
 /* Чекбоксы */
@@ -189,7 +257,7 @@ QCheckBox::indicator {
     width: 14px;
     height: 14px;
     border-radius: 7px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid #a0a0a0;
     background: #ffffff;
 }
 

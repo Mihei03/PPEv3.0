@@ -11,66 +11,80 @@ class RtspControls(QWidget):
         layout = QHBoxLayout()
         
         self.add_btn = QPushButton("Добавить")
-        self.add_btn.clicked.connect(self.add_rtsp)
-        
         self.edit_btn = QPushButton("Изменить")
-        self.edit_btn.clicked.connect(self.edit_rtsp)
+        self.remove_btn = QPushButton("Удалить")
         
-        self.delete_btn = QPushButton("Удалить")
-        self.delete_btn.clicked.connect(self.delete_rtsp)
+        self.add_btn.clicked.connect(self._on_add)
+        self.edit_btn.clicked.connect(self._on_edit)
+        self.remove_btn.clicked.connect(self._on_remove)
         
         layout.addWidget(self.add_btn)
         layout.addWidget(self.edit_btn)
-        layout.addWidget(self.delete_btn)
+        layout.addWidget(self.remove_btn)
         self.setLayout(layout)
     
-    def add_rtsp(self):
+    def _on_add(self):
+        """Обработчик кнопки Добавить"""
         existing_names = set(self.manager.rtsp_storage.get_all_rtsp().keys())
-        dialog = RtspEditDialog(self, existing_names)
+        dialog = RtspEditDialog(
+            parent=self,
+            existing_names=existing_names,
+            is_edit_mode=False  # Явно указываем режим добавления
+        )
+        
         if dialog.exec():
             data = dialog.get_data()
             if self.manager.rtsp_storage.add_rtsp(data["name"], data["url"], data["comment"]):
                 self.manager.load_data()
-    
-    def edit_rtsp(self):
-        selected = self.manager.table.currentRow()
-        if selected >= 0:
-            name_item = self.manager.table.item(selected, 1)
-            if not name_item:
-                return
-                
-            old_name = name_item.text()
-            rtsp_data = self.manager.rtsp_storage.get_all_rtsp().get(old_name, {})
+            else:
+                QMessageBox.warning(self, "Ошибка", "Не удалось добавить RTSP поток")
+
+    def _on_edit(self):
+        """Обработчик кнопки Изменить"""
+        selected = self.manager.table.get_selected()
+        if not selected:
+            QMessageBox.warning(self, "Ошибка", "Выберите RTSP поток для редактирования")
+            return
             
-            existing_names = set(self.manager.rtsp_storage.get_all_rtsp().keys())
-            existing_names.remove(old_name)  # Исключаем текущее имя из проверки
+        existing_names = set(self.manager.rtsp_storage.get_all_rtsp().keys())
+        existing_names.remove(selected['name'])  # Удаляем текущее имя из проверки
+        
+        dialog = RtspEditDialog(
+            parent=self,
+            existing_names=existing_names,
+            is_edit_mode=True  # Явно указываем режим редактирования
+        )
+        
+        # Заполняем поля данными
+        dialog.name_input.setText(selected['name'])
+        dialog.url_input.setText(selected['url'])
+        dialog.comment_input.setPlainText(selected['comment'])
+        
+        if dialog.exec():
+            new_data = dialog.get_data()
+            # Удаляем старую запись и добавляем новую
+            if (self.manager.rtsp_storage.remove_rtsp(selected['name']) and 
+                self.manager.rtsp_storage.add_rtsp(new_data["name"], new_data["url"], new_data["comment"])):
+                self.manager.load_data()
+            else:
+                QMessageBox.warning(self, "Ошибка", "Не удалось обновить RTSP поток")
+
+    def _on_remove(self):
+        """Обработчик кнопки Удалить"""
+        selected = self.manager.table.get_selected()
+        if not selected:
+            QMessageBox.warning(self, "Ошибка", "Выберите RTSP поток для удаления")
+            return
             
-            dialog = RtspEditDialog(self, existing_names)
-            dialog.name_input.setText(old_name)
-            dialog.url_input.setText(rtsp_data.get("url", ""))
-            dialog.comment_input.setPlainText(rtsp_data.get("comment", ""))
-            
-            if dialog.exec():
-                new_data = dialog.get_data()
-                self.manager.rtsp_storage.remove_rtsp(old_name)
-                if self.manager.rtsp_storage.add_rtsp(new_data["name"], new_data["url"], new_data["comment"]):
-                    self.manager.load_data()
-    
-    def delete_rtsp(self):
-        selected = self.manager.table.currentRow()
-        if selected >= 0:
-            name_item = self.manager.table.item(selected, 1)
-            if not name_item:
-                return
-                
-            name = name_item.text()
-            reply = QMessageBox.question(
-                self, 
-                "Подтверждение", 
-                f"Вы уверены, что хотите удалить '{name}'?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            
-            if reply == QMessageBox.StandardButton.Yes:
-                if self.manager.rtsp_storage.remove_rtsp(name):
-                    self.manager.load_data()
+        reply = QMessageBox.question(
+            self, 
+            "Подтверждение", 
+            f"Вы уверены, что хотите удалить '{selected['name']}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.manager.rtsp_storage.remove_rtsp(selected['name']):
+                self.manager.load_data()
+            else:
+                QMessageBox.warning(self, "Ошибка", "Не удалось удалить RTSP поток")

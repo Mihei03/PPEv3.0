@@ -12,12 +12,10 @@ class RtspEditDialog(QDialog):
         self.existing_names = existing_names or set()
         self.is_edit_mode = is_edit_mode  
         self.setup_ui()
+        # Переносим вызов _update_ui_for_mode() в конец setup_ui()
 
     def setup_ui(self):
         """Настраивает интерфейс диалогового окна"""
-        # Устанавливаем заголовок окна в зависимости от режима
-        title = "Изменить RTSP поток" if self.is_edit_mode else "Добавить новый RTSP поток"
-        self.setWindowTitle(title)
         self.setModal(True)
         
         layout = QVBoxLayout()
@@ -25,45 +23,48 @@ class RtspEditDialog(QDialog):
         
         # Поле для названия
         self.name_input = QLineEdit()
-        name_label = "Название:"
-        name_tooltip = ("Редактирование существующего названия RTSP потока" 
-                       if self.is_edit_mode 
-                       else "Введите уникальное название для нового RTSP потока")
-        self.name_input.setToolTip(name_tooltip)
-        form.addRow(name_label, self.name_input)
+        form.addRow("Название:", self.name_input)
         
         # Поле для URL
         self.url_input = QLineEdit()
-        url_tooltip = ("Редактирование RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path"
-                      if self.is_edit_mode 
-                      else "Введите RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path")
-        self.url_input.setToolTip(url_tooltip)
         form.addRow("URL:", self.url_input)
         
         # Поле для комментария
         self.comment_input = QTextEdit()
-        comment_tooltip = ("Редактирование комментария" 
-                          if self.is_edit_mode 
-                          else "Добавьте комментарий (необязательно)")
-        self.comment_input.setToolTip(comment_tooltip)
         form.addRow("Комментарий:", self.comment_input)
         
         # Кнопки OK/Cancel
-        buttons = QDialogButtonBox(
+        self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
         )
         
-        # Меняем текст кнопки OK в зависимости от режима
-        ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
-        ok_button.setText("Сохранить изменения" if self.is_edit_mode else "Добавить поток")
+        self.ok_button = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         
-        buttons.accepted.connect(self._validate_and_accept)
-        buttons.rejected.connect(self.reject)
+        self.buttons.accepted.connect(self._validate_and_accept)
+        self.buttons.rejected.connect(self.reject)
         
         layout.addLayout(form)
-        layout.addWidget(buttons)
+        layout.addWidget(self.buttons)
         self.setLayout(layout)
+        
+        # Важно: вызываем после создания всех элементов UI
+        self._update_ui_for_mode()
+
+    def _update_ui_for_mode(self):
+        """Обновляет UI в зависимости от режима (добавление/редактирование)"""
+        if self.is_edit_mode:
+            self.setWindowTitle("Изменить RTSP поток")
+            self.ok_button.setText("Сохранить изменения")
+            self.name_input.setToolTip("Редактирование существующего названия RTSP потока")
+            self.url_input.setToolTip("Редактирование RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path")
+            self.comment_input.setToolTip("Редактирование комментария")
+        else:
+            self.setWindowTitle("Добавить новый RTSP поток")
+            self.ok_button.setText("Добавить поток")
+            self.name_input.setToolTip("Введите уникальное название для нового RTSP потока")
+            self.url_input.setToolTip("Введите RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path")
+            self.comment_input.setToolTip("Добавьте комментарий (необязательно)")
 
     def _validate_and_accept(self):
         """Проверка с использованием полной валидации RTSP"""
