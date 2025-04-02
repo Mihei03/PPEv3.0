@@ -1,4 +1,3 @@
-# rtsp_manager.py
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QMessageBox
 from .rtsp_table import RtspTable
 from .rtsp_controls import RtspControls

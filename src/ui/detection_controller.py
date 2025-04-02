@@ -1,4 +1,4 @@
-from src.yolo.yolo_detector import YOLODetector
+from src.detection.yolo.yolo_detector import YOLODetector
 from src.detection.face_detection import FaceDetector
 from src.detection.pose_detection import PoseDetector
 from src.detection.siz_detection import SIZDetector

@@ -30,6 +30,69 @@ class ModelHandler(QObject):
             return []
             
         return sorted(Config.get_available_models().keys())
+    
+    def rename_model(self, old_name, new_name):
+        """Переименовывает модель"""
+        try:
+            if not new_name or new_name == old_name:
+                return False
+                
+            old_dir = os.path.join(Config.MODELS_ROOT, old_name)
+            new_dir = os.path.join(Config.MODELS_ROOT, new_name)
+            
+            if os.path.exists(new_dir):
+                return False
+                
+            os.rename(old_dir, new_dir)
+            self.models_updated.emit()
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка переименования модели: {str(e)}")
+            return False
+    
+    def get_models_info(self):
+        """Возвращает информацию о моделях с комментариями"""
+        models = Config.get_available_models()
+        result = {}
+        for name, info in models.items():
+            comment_file = os.path.join(Config.MODELS_ROOT, name, "comment.txt")
+            comment = ""
+            if os.path.exists(comment_file):
+                try:
+                    with open(comment_file, 'r', encoding='utf-8') as f:
+                        comment = f.read().strip()
+                except:
+                    comment = ""
+            result[name] = {
+                'path': info['pt_file'],
+                'comment': comment
+            }
+        return result
+
+    def save_model_comment(self, model_name, comment):
+        """Сохраняет комментарий к модели"""
+        try:
+            model_dir = os.path.join(Config.MODELS_ROOT, model_name)
+            os.makedirs(model_dir, exist_ok=True)
+            with open(os.path.join(model_dir, "comment.txt"), 'w', encoding='utf-8') as f:
+                f.write(comment)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка сохранения комментария: {str(e)}")
+            return False
+
+    def remove_model(self, model_name):
+        """Удаляет модель"""
+        try:
+            model_dir = os.path.join(Config.MODELS_ROOT, model_name)
+            if os.path.exists(model_dir):
+                shutil.rmtree(model_dir)
+                self.models_updated.emit()
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Ошибка удаления модели: {str(e)}")
+            return False
         
     def set_yolo_detector(self, yolo_detector):
         """Явная установка YOLO детектора с проверкой"""
@@ -91,19 +154,22 @@ class ModelHandler(QObject):
     def is_model_activated(self):
         return self._model_activated and bool(self._current_model)
 
-    def add_model_from_folder(self):
+    def add_model_from_folder(self, folder_path=None, model_name=None):
+        """Добавляет модель из папки с указанным именем"""
         try:
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            folder_path = QFileDialog.getExistingDirectory(
-                None,
-                "Выберите папку с моделью (.pt и .yaml файлы)",
-                desktop,
-                QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
-            )
+            if folder_path is None:
+                desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+                folder_path = QFileDialog.getExistingDirectory(
+                    None,
+                    "Выберите папку с моделью (.pt и .yaml файлы)",
+                    desktop,
+                    QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
+                )
 
-            if not folder_path:
-                return False
+                if not folder_path:
+                    return False
 
+            # Проверка файлов модели
             files = os.listdir(folder_path)
             pt_files = [f for f in files if f.lower().endswith('.pt')]
             yaml_files = [f for f in files if f.lower().endswith('.yaml')]
@@ -113,13 +179,14 @@ class ModelHandler(QObject):
                 if not pt_files: missing.append(".pt файл")
                 if not yaml_files: missing.append(".yaml файл")
                 QMessageBox.warning(None, "Неполная модель", 
-                                  f"Отсутствуют: {', '.join(missing)}")
+                                f"Отсутствуют: {', '.join(missing)}")
                 return False
 
-            model_name = os.path.basename(folder_path)
+            # Создаем папку с указанным именем модели
             target_dir = os.path.join(Config.MODELS_ROOT, model_name)
             os.makedirs(target_dir, exist_ok=True)
 
+            # Копируем файлы модели
             for file in pt_files + yaml_files:
                 src = os.path.join(folder_path, file)
                 dst = os.path.join(target_dir, file)
@@ -132,7 +199,7 @@ class ModelHandler(QObject):
         except Exception as e:
             self.logger.error(f"Ошибка загрузки модели: {str(e)}")
             QMessageBox.critical(None, "Ошибка", 
-                               f"Не удалось добавить модель:\n{str(e)}")
+                            f"Не удалось добавить модель:\n{str(e)}")
             return False
     
     def _get_class_names(self, model_name, model_info):

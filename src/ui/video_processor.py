@@ -38,39 +38,18 @@ class VideoProcessor(QObject):
     @pyqtSlot(str, int)
     def set_video_source(self, source, selected_source_type):
         self.stop_processing()
-        self._reset_validation()
-
+    
         input_type, normalized_source, error_msg = InputValidator.validate_input(
             source, selected_source_type
         )
         
-        # Устанавливаем свойство valid для соответствующего поля
-        if selected_source_type == 0:  # Камера
-            self.ui.camera_input.setProperty("valid", input_type is not None)
-        elif selected_source_type == 1:  # Видеофайл
-            self.ui.video_input.setProperty("valid", input_type is not None)
-        elif selected_source_type == 2:  # RTSP
-            self.ui.rtsp_input.setProperty("valid", input_type is not None)
-        
-        self._update_input_styles()
-        
         if error_msg:
             self.input_error.emit(error_msg)
             return False
-    
+
         if self.cap:
             self.cap.release()
-        self.cap = None
-        self.current_image = None
         
-        input_type, normalized_source, error_msg = InputValidator.validate_input(
-            source, selected_source_type
-        )
-        
-        if error_msg:
-            self.input_error.emit(error_msg)
-            return False
-            
         try:
             if input_type == InputType.CAMERA:
                 self.cap = cv2.VideoCapture(int(normalized_source))

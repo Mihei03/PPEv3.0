@@ -18,16 +18,26 @@ def check_camera():
     return True
 
 def load_stylesheet():
-    """Загрузка стилей из файла"""
+    """Загрузка стилей из файла с проверкой пути"""
+    logger = AppLogger.get_logger()
     try:
-        style_path = os.path.join(os.path.dirname(__file__), 'ui', 'styles', 'styles.css')
+        # Получаем абсолютный путь к файлу стилей
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        style_path = os.path.join(base_dir, 'ui', 'styles', 'styles.css')
         
-        with open(style_path, 'r') as f:
+        # Проверяем существование файла
+        if not os.path.exists(style_path):
+            logger.error(f"Файл стилей не найден: {style_path}")
+            return ""
+            
+        # Читаем файл с указанием кодировки
+        with open(style_path, 'r', encoding='utf-8') as f:
             stylesheet = f.read()
             
+        logger.info("Стили успешно загружены")
         return stylesheet
     except Exception as e:
-        AppLogger.get_logger().error(f"Ошибка загрузки стилей: {str(e)}")
+        logger.error(f"Ошибка загрузки стилей: {str(e)}", exc_info=True)
         return ""
 
 def check_models():
@@ -62,8 +72,17 @@ def show_warning_messages(app):
     # Проверка камеры
     cap = cv2.VideoCapture(Config.CAMERA_INDEX)
     if not cap.isOpened():
-        QMessageBox.warning(None, "Предупреждение", 
-            "Камера не доступна! Некоторые функции будут недоступны.")
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("Предупреждение")
+        msg_box.setText("Камера не доступна! Некоторые функции будут недоступны.")
+        msg_box.setIcon(QMessageBox.Icon.Warning)
+        
+        # Применяем текущую тему к QMessageBox
+        if app.property("class") == "dark-mode":
+            msg_box.setProperty("class", "dark-mode")
+            msg_box.setStyleSheet(app.styleSheet())
+            
+        msg_box.exec()
     cap.release()
 
 def main():
@@ -77,16 +96,17 @@ def main():
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon('data/images/app_icon.png'))
     
+    # Загрузка и применение стилей ДО создания главного окна
     stylesheet = load_stylesheet()
-    app.setStyleSheet(stylesheet)
+    if stylesheet:
+        app.setStyleSheet(stylesheet)
+    else:
+        logger.warning("Не удалось загрузить стили")
 
+    # Настройка темы
     settings = QSettings("MyCompany", "SIZDetector")
     dark_mode = settings.value("dark_mode", False, type=bool)
-
-    if dark_mode:
-        app.setProperty("class", "dark-mode")
-    else:
-        app.setProperty("class", "")
+    app.setProperty("class", "dark-mode" if dark_mode else "")
 
     # Показать предупреждения (не блокирующие)
     show_warning_messages(app)
@@ -94,6 +114,8 @@ def main():
     try:
         from src.ui.ui_window import MainWindowUI
         from src.ui.main_controller import MainController
+        
+        # Создание окна ПОСЛЕ применения стилей
         window = MainWindowUI()
         controller = MainController(window)
 
@@ -107,7 +129,7 @@ def main():
         window.statusBar().showMessage(status_message, 3000)
         sys.exit(app.exec())
     except Exception as e:
-        logger.error(f"Не удалось запустить приложение: {str(e)}")
+        logger.error(f"Не удалось запустить приложение: {str(e)}", exc_info=True)
         QMessageBox.critical(None, "Ошибка", f"Критическая ошибка: {str(e)}")
         sys.exit(1)
     

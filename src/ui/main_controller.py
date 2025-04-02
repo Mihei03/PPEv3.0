@@ -1,15 +1,15 @@
 from PyQt6.QtCore import QObject, pyqtSlot, QSettings, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication, QWidget
-from ui.ui_components.rtsp_storage import RtspStorage
-from ui.ui_components.rtsp_manager import RtspManagerDialog
+from rtsp.rtsp_storage import RtspStorage
+from rtsp.rtsp_manager import RtspManagerDialog
 import os
-from .model_handler import ModelHandler
+from models.model_handler import ModelHandler
 from .video_processor import VideoProcessor
 from .detection_controller import DetectionController
 from utils.logger import AppLogger
-from ui.ui_components.rtsp_storage import RtspStorage
-from yolo.yolo_detector import YOLODetector
-
+from rtsp.rtsp_storage import RtspStorage
+from detection.yolo.yolo_detector import YOLODetector
+from models.model_manager import ModelManagerDialog
 class MainController(QObject):
     theme_changed = pyqtSignal(bool)
     
@@ -59,8 +59,8 @@ class MainController(QObject):
         self.ui.landmarks_check.stateChanged.connect(
             lambda state: self.video_processor.toggle_landmarks(state == 2)  # Qt.Checked = 2
         )
-        self.ui.model_combo.currentTextChanged.connect(self._on_model_selected)
-        self.ui.add_model_btn.clicked.connect(self._load_new_model)
+        self.ui.activate_model_btn.clicked.connect(self._activate_model)
+        self.ui.manage_models_btn.clicked.connect(self._show_models_dialog)
         self.ui.source_type.currentIndexChanged.connect(self._update_source_type)
         self.ui.browse_btn.clicked.connect(self._handle_file_browse)
         self.ui.theme_btn.clicked.connect(self._toggle_theme)
@@ -75,6 +75,16 @@ class MainController(QObject):
         self.model_handler.model_loading.connect(self._on_model_loading)
         self.model_handler.models_updated.connect(self._refresh_models_list)
 
+    @pyqtSlot()
+    def _activate_model(self):
+        """Активация модели только по кнопке"""
+        model_name = self.ui.model_combo.currentText()
+        if not model_name or model_name == "Нет доступных моделей":
+            self.ui.show_message("Не выбрана модель", 3000)
+            return
+        
+        self._on_model_selected(model_name)
+
     def _load_initial_state(self):
         self._load_theme_settings()
         self._load_initial_models()
@@ -85,7 +95,6 @@ class MainController(QObject):
     def _load_rtsp_list(self):
         """Загружает и обновляет список RTSP потоков"""
         try:
-            from ui.ui_components.rtsp_storage import RtspStorage
             rtsp_storage = RtspStorage()
             rtsp_list = rtsp_storage.get_all_rtsp()
             
@@ -177,22 +186,41 @@ class MainController(QObject):
             self.ui.source_input.setText("0")
 
     def _handle_file_browse(self):
-        """Обработка выбора файла с бизнес-логикой"""
-        if self.ui.source_type.currentIndex() == 1:  # Видеофайл
-            # Используем существующий текст как начальную директорию
-            initial_dir = os.path.dirname(self.ui.source_input.text()) if self.ui.source_input.text() else ""
-            
-            file_path, _ = QFileDialog.getOpenFileName(
-                self.ui,
-                "Выберите видеофайл",
-                initial_dir,
-                "Video Files (*.mp4 *.avi *.mov *.mkv)"
-            )
-            
-            if file_path:
-                self.ui.source_input.setText(file_path)
-                # Дополнительная бизнес-логика при необходимости
-                self._on_video_source_changed(file_path, 1)  # 1 - тип "Видеофайл"
+        """Обработка выбора файла"""
+        if self.ui.source_type.currentIndex() != 1:  # Видеофайл
+            return
+
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.ui,
+            "Выберите видеофайл",
+            desktop,
+            "Video Files (*.mp4 *.avi *.mov *.mkv)"
+        )
+        
+        if file_path:
+            self.ui.source_input.setText(file_path)
+            self._validate_video_source(file_path)
+
+    def _validate_video_source(self, file_path):
+        """Валидация и установка видео источника"""
+        # Обновляем стиль поля ввода
+        is_valid = os.path.exists(file_path)
+        self._set_input_validation_style(is_valid)
+        
+        if is_valid:
+            success = self.video_processor.set_video_source(file_path, 1)  # 1 - тип "Видеофайл"
+            if not success:
+                self.ui.show_message("Не удалось загрузить видеофайл", 3000)
+        else:
+            self.ui.show_message("Файл не существует", 3000)
+
+    def _set_input_validation_style(self, is_valid):
+        """Устанавливает стиль поля ввода на основе валидности"""
+        self.ui.source_input.setProperty("valid", str(is_valid).lower())
+        self.ui.source_input.style().unpolish(self.ui.source_input)
+        self.ui.source_input.style().polish(self.ui.source_input)
+        self.ui.source_input.update()
 
     @pyqtSlot()
     def _on_stop_processing(self):
@@ -215,7 +243,7 @@ class MainController(QObject):
             self.ui.landmarks_check,
             self.ui.model_combo,
             self.ui.activate_model_btn,
-            self.ui.add_model_btn
+            self.ui.manage_models_btn
         ]
         
         for widget in widgets:
@@ -226,7 +254,7 @@ class MainController(QObject):
 
     @pyqtSlot(str)
     def _on_model_selected(self, model_name):
-        """Обработчик только для активации по кнопке"""
+        """Обработчик активации модели"""
         if not model_name or model_name == "Нет доступных моделей":
             self.ui.show_message("Не выбрана модель", 3000)
             return
@@ -251,7 +279,7 @@ class MainController(QObject):
         widgets = [
             self.ui.model_combo,
             self.ui.activate_model_btn,
-            self.ui.add_model_btn,
+            self.ui.manage_models_btn,
             self.ui.start_btn
         ]
         for widget in widgets:
@@ -314,11 +342,14 @@ class MainController(QObject):
             self.ui.show_message("Ошибка обновления статуса")
 
     @pyqtSlot()
-    def _load_new_model(self):
-        if self.model_handler.add_model_from_folder():
-            models = self.model_handler.refresh_models_list()
-            self._refresh_models_list()
-            self.ui.show_message("Модель успешно добавлена", 3000)
+    def _show_models_dialog(self):
+        try:
+            dialog = ModelManagerDialog(self.model_handler, self.ui)
+            dialog.models_updated.connect(self._refresh_models_list)
+            dialog.exec()
+        except Exception as e:
+            self.logger.error(f"Ошибка открытия диалога моделей: {str(e)}")
+            self.ui.show_warning("Ошибка", "Не удалось открыть диалог управления моделями")
 
     @pyqtSlot()
     def _refresh_models_list(self):

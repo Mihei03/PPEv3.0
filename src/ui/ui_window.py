@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, 
-                            QComboBox, QPushButton, QCheckBox, QLineEdit, QMessageBox,
+from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QSizePolicy, QScrollArea,
+                            QComboBox, QPushButton, QCheckBox, QLineEdit, QMessageBox, QSpacerItem,
                             QFileDialog, QStatusBar)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage
@@ -16,6 +16,7 @@ class MainWindowUI(QMainWindow):
     video_source_changed = pyqtSignal(str, int)
     rtsp_selected = pyqtSignal(str)
     add_rtsp_requested = pyqtSignal()
+    manage_models_requested = pyqtSignal()
 
     def set_style_sheet(self, stylesheet):
         self.setStyleSheet(stylesheet)
@@ -28,132 +29,196 @@ class MainWindowUI(QMainWindow):
         self._init_ui()
         self._connect_signals()
         self._setup_validation()
-
+        self.setMinimumSize(1000, 800)
+        
     def _init_ui(self):
-        """Инициализация пользовательского интерфейса с проверкой всех атрибутов"""
+        """Инициализация пользовательского интерфейса с улучшенной компоновкой"""
         self.setWindowTitle("Система обнаружения СИЗ")
-        self.setGeometry(100, 100, 800, 600)
         
         # Главный виджет и layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout.setSpacing(10)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
         
-        # 1. Видео дисплей
+        # 1. Видео дисплей (с улучшенной адаптивностью)
         self._init_video_display()
         
-        # 2. Панель выбора модели
+        # 2. Панель выбора модели (с улучшенной компоновкой)
         self._init_model_panel()
         
-        # 3. Панель управления
+        # 3. Панель управления (переработанная для лучшей адаптивности)
         self._init_control_panel()
         
-        # 4. Статус бар и тема
+        # 4. Статус бар
         self._init_status_bar()
         
         # Настройка видимости элементов
         self._update_source_type(0)
         
-        # Установка стилей
-        self._apply_initial_styles()
+        # Установка политик размеров для адаптивности
+        self._setup_size_policies()
 
     def _init_video_display(self):
-        """Инициализация видео дисплея"""
+        """Инициализация видео дисплея с гарантированным растягиванием"""
+        # Создаем scroll area как контейнер для видео
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.scroll_area.setStyleSheet("background: black;")
+        
+        # Создаем виджет-контейнер внутри scroll area
+        self.video_container = QWidget()
+        self.video_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+        
+        # Layout контейнера
+        self.video_layout = QVBoxLayout(self.video_container)
+        self.video_layout.setContentsMargins(0, 0, 0, 0)
+        self.video_layout.setSpacing(0)
+        
+        # Сам видео дисплей
         self.video_display = QLabel()
+        self.video_display.setObjectName("videoDisplay")
         self.video_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_display.setMinimumSize(640, 480)
-        self.video_display.setStyleSheet("background-color: black;")
-        self.main_layout.addWidget(self.video_display)
+        self.video_display.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+        self.video_display.setScaledContents(True)
+        
+        # Добавляем видео дисплей в контейнер
+        self.video_layout.addWidget(self.video_display)
+        
+        # Устанавливаем контейнер в scroll area
+        self.scroll_area.setWidget(self.video_container)
+        
+        # Добавляем scroll area в главный layout
+        self.main_layout.addWidget(self.scroll_area, stretch=1)  # Максимальный приоритет растяжения
 
     def _init_model_panel(self):
         """Инициализация панели выбора модели"""
         self.model_panel = QWidget()
         model_layout = QHBoxLayout(self.model_panel)
+        model_layout.setContentsMargins(0, 0, 0, 0)
+        model_layout.setSpacing(10)
         
-        self.model_label = QLabel("Модели:")
+        self.model_label = QLabel("Модель:   ")
         self.model_combo = QComboBox()
-        self.activate_model_btn = QPushButton("Активировать модель")
-        self.add_model_btn = QPushButton("Добавить модель")
+        self.model_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
-        # Настройка свойств
-        self.model_label.setObjectName("modelLabel")
-        self.activate_model_btn.setEnabled(False)
+        self.activate_model_btn = QPushButton("Активировать")
+        
+        self.manage_models_btn = QPushButton("Управление моделями")
         
         model_layout.addWidget(self.model_label)
-        model_layout.addWidget(self.model_combo)
+        model_layout.addWidget(self.model_combo, stretch=1)
         model_layout.addWidget(self.activate_model_btn)
-        model_layout.addWidget(self.add_model_btn)
+        model_layout.addWidget(self.manage_models_btn)
         
         self.main_layout.addWidget(self.model_panel)
 
     def _init_control_panel(self):
-        """Инициализация панели управления"""
+        """Инициализация панели управления с улучшенной адаптивностью"""
         self.control_panel = QWidget()
-        control_layout = QHBoxLayout(self.control_panel)
+        control_layout = QVBoxLayout(self.control_panel)
+        control_layout.setContentsMargins(0, 0, 0, 0)
+        control_layout.setSpacing(10)
         
-        # Создание элементов
+        # Верхняя строка: выбор источника
+        source_row = QWidget()
+        source_layout = QHBoxLayout(source_row)
+        source_layout.setContentsMargins(0, 0, 0, 0)
+        source_layout.setSpacing(10)
+        
         self.source_label = QLabel("Источник:")
         self.source_type = QComboBox()
         self.source_type.addItems(["Камера", "Видеофайл", "RTSP поток"])
-        self.source_input = QLineEdit()
-        self.browse_btn = QPushButton("Обзор")
-        self.rtsp_combo = QComboBox()
-        self.add_rtsp_btn = QPushButton("+")
-        self.landmarks_check = QCheckBox("Показывать ключевые точки")
-        self.start_btn = QPushButton("Start")
+        self.source_type.setFixedWidth(120)
         
-        # Настройка свойств
-        self.source_input.setPlaceholderText("Введите индекс камеры (0, 1, ...)")
-        self.add_rtsp_btn.setFixedWidth(30)
-        self.landmarks_check.setChecked(True)
+        self.source_input = QLineEdit()
+        self.source_input.setProperty("valid", "unknown")
+        self.source_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        
+        self.browse_btn = QPushButton("Обзор")
+        
+        self.rtsp_combo = QComboBox()
+        self.rtsp_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        
+        self.add_rtsp_btn = QPushButton("+")
+        
+        source_layout.addWidget(self.source_label)
+        source_layout.addWidget(self.source_type)
+        source_layout.addWidget(self.source_input, stretch=1)
+        source_layout.addWidget(self.browse_btn)
+        source_layout.addWidget(self.rtsp_combo, stretch=1)
+        source_layout.addWidget(self.add_rtsp_btn)
+        
+        # Нижняя строка: управление
+        bottom_row = QWidget()
+        bottom_layout = QHBoxLayout(bottom_row)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(10)
+        
+        self.landmarks_check = QCheckBox("Показывать ключевые точки")
+        spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        
+        self.start_btn = QPushButton("Запустить анализ")
         self.start_btn.setObjectName("startButton")
         self.start_btn.setEnabled(False)
         
-        # Добавление в layout
-        control_layout.addWidget(self.source_label)
-        control_layout.addWidget(self.source_type)
-        control_layout.addWidget(self.source_input)
-        control_layout.addWidget(self.browse_btn)
-        control_layout.addWidget(self.rtsp_combo)
-        control_layout.addWidget(self.add_rtsp_btn)
-        control_layout.addWidget(self.landmarks_check)
-        control_layout.addWidget(self.start_btn)
+        bottom_layout.addWidget(self.landmarks_check)
+        bottom_layout.addItem(spacer)
+        bottom_layout.addWidget(self.start_btn)
+        
+        control_layout.addWidget(source_row)
+        control_layout.addWidget(bottom_row)
         
         self.main_layout.addWidget(self.control_panel)
 
     def _init_status_bar(self):
-        """Инициализация статус бара и кнопки темы"""
+        """Инициализация статус бара с небольшими улучшениями"""
         self.status_bar = QStatusBar()
+        self.status_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setStatusBar(self.status_bar)
         
-        self.theme_btn = QPushButton()
+        self.theme_btn = QPushButton("🌙")
         self.theme_btn.setObjectName("themeButton")
+        self.theme_btn.setFixedSize(30, 30)
         self.status_bar.addPermanentWidget(self.theme_btn)
 
-    def _apply_initial_styles(self):
-        """Применение начальных стилей"""
-        # Установка начального текста кнопки темы
-        self.theme_btn.setText("🌙")
+    def _setup_size_policies(self):
+        """Настройка политик размеров для адаптивности"""
+        # Виджеты, которые должны расширяться по горизонтали
+        expand_horizontal = [
+            self.video_display,
+            self.model_combo,
+            self.source_input,
+            self.rtsp_combo
+        ]
         
-        # Настройка отступов
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
-        self.main_layout.setSpacing(10)
+        for widget in expand_horizontal:
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        
+        # Главное окно должно сохранять пропорции
+        self.central_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def _setup_validation(self):
-        """Настраивает валидацию в реальном времени для всех полей ввода"""
-        # Подключаем сигналы изменения текста
+        """Настраивает валидацию в реальном времени (без изменений)"""
         self.source_input.textChanged.connect(self._validate_current_input)
         self.source_type.currentIndexChanged.connect(self._update_validation)
-        
-        # Инициализируем валидацию
         self._update_validation()
 
     def _update_validation(self):
-        """Обновляет тип валидации при изменении типа источника"""
+        """Обновляет тип валидации при изменении типа источника (без изменений)"""
         self._validate_current_input(self.source_input.text())
 
     def _validate_current_input(self, text):
-        """Валидирует текущий ввод в зависимости от выбранного типа"""
+        """Валидирует текущий ввод (без изменений)"""
         source_type = self.source_type.currentIndex()
         text = text.strip()
         
@@ -235,25 +300,24 @@ class MainWindowUI(QMainWindow):
         if not self._connections_initialized:
             # Подключение кнопки активации
             self.activate_model_btn.clicked.connect(
-            lambda: self.model_selected.emit(self.model_combo.currentText())
-        )
+                lambda: self.model_selected.emit(self.model_combo.currentText())
+            )
             
-            # Подключение изменения модели только для обновления текущего выбора
+            # Подключение изменения модели
             self.model_combo.currentTextChanged.connect(self._update_current_model)
             
             self._connections_initialized = True
-
+        
+        # Оставляем только эти подключения
         self.source_type.currentIndexChanged.connect(self._update_source_type)
-        self.browse_btn.clicked.connect(self._browse_file_ui)
-        self.add_model_btn.clicked.connect(self.load_model_requested.emit)
-        
-        
-        self.landmarks_check.stateChanged.connect(lambda state: self.toggle_landmarks.emit(state == Qt.CheckState.Checked.value))
+        self.landmarks_check.stateChanged.connect(
+            lambda state: self.toggle_landmarks.emit(state == Qt.CheckState.Checked.value)
+        )
         self.add_rtsp_btn.clicked.connect(self.add_rtsp_requested.emit)
         self.rtsp_combo.currentTextChanged.connect(self.rtsp_selected.emit)
     
     def _update_current_model(self, model_name):
-        """Только сохраняет текущий выбор, не активирует"""
+        """Просто обновляет текущее название модели без активации"""
         self._current_model_name = model_name
 
     def _activate_model(self):
@@ -286,14 +350,17 @@ class MainWindowUI(QMainWindow):
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Выберите видеофайл",
-                "",
+                self.source_input.text() or "",  # Начинаем с текущего пути если есть
                 "Video Files (*.mp4 *.avi *.mov *.mkv)"
             )
             if file_path:
                 self.source_input.setText(file_path)
 
     def update_frame(self, q_image):
-        self.video_display.setPixmap(QPixmap.fromImage(q_image))
+        """Обновление кадра с автоматическим масштабированием"""
+        pixmap = QPixmap.fromImage(q_image)
+        self.video_display.setPixmap(pixmap)
+        self.video_display.adjustSize()  # Важно для правильного масштабирования
         
     def show_message(self, message, timeout=0):
         self.status_bar.showMessage(message, timeout)
