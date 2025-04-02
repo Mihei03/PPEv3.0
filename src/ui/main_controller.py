@@ -10,6 +10,9 @@ from utils.logger import AppLogger
 from rtsp.rtsp_storage import RtspStorage
 from detection.yolo.yolo_detector import YOLODetector
 from models.model_manager import ModelManagerDialog
+from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtCore import Qt
+
 class MainController(QObject):
     theme_changed = pyqtSignal(bool)
     
@@ -40,6 +43,7 @@ class MainController(QObject):
         
         # 3. Инициализируем DetectionController
         self.detection_controller = DetectionController()
+        self.detection_controller.setup_detectors()
         self.detection_controller.yolo = self.yolo_detector
         self.logger.info("DetectionController инициализирован")
         
@@ -57,7 +61,7 @@ class MainController(QObject):
         # UI сигналы
         self.ui.start_btn.clicked.connect(self._on_start_stop)
         self.ui.landmarks_check.stateChanged.connect(
-            lambda state: self.video_processor.toggle_landmarks(state == 2)  # Qt.Checked = 2
+            lambda state: self.video_processor.toggle_landmarks(state == Qt.CheckState.Checked.value)
         )
         self.ui.activate_model_btn.clicked.connect(self._activate_model)
         self.ui.manage_models_btn.clicked.connect(self._show_models_dialog)
@@ -67,13 +71,18 @@ class MainController(QObject):
         self.ui.add_rtsp_requested.connect(self._show_rtsp_dialog)
 
         # Обратные сигналы
-        self.video_processor.update_frame.connect(self.ui.video_display.setPixmap)
+        self.video_processor.update_frame.connect(self._handle_frame_update)
         self.video_processor.siz_status_changed.connect(self._update_siz_status)
         self.video_processor.input_error.connect(self._on_input_error)
         
         self.model_handler.model_loaded.connect(self._on_model_loaded)
         self.model_handler.model_loading.connect(self._on_model_loading)
         self.model_handler.models_updated.connect(self._refresh_models_list)
+
+    @pyqtSlot(QImage)
+    def _handle_frame_update(self, q_image):
+        if not q_image.isNull():
+            self.ui.update_frame(q_image)
 
     @pyqtSlot()
     def _activate_model(self):
@@ -301,7 +310,7 @@ class MainController(QObject):
     def _on_model_loaded(self, model_name, model_info):
         if self.video_processor.load_model(model_name, model_info):
             self.current_model = model_name
-            self.ui.start_btn.setEnabled(True)
+            self.ui.start_btn.setEnabled(True)  # Это должно включать кнопку
             self.ui.show_message(f"Модель '{model_name}' готова", 3000)
         else:
             self.ui.start_btn.setEnabled(False)
@@ -329,7 +338,7 @@ class MainController(QObject):
             if status == "nothing":
                 message = "СИЗ: ничего не обнаружено!"
             elif isinstance(status, list):
-                message = "СИЗ: все на местах" if all(status) else "СИЗ: обнаружены не все!"
+                message = "СИЗ: все на местах" if all(status) else "СИЗ: Не всё на своих местах!"
             else:
                 message = "СИЗ: все на местах" if status else "СИЗ: проблемы обнаружены!"
             

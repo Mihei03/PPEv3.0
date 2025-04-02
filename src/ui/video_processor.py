@@ -22,7 +22,7 @@ class VideoProcessor(QObject):
         self.current_image = None
         self.current_input_type = None
         self.processing_active = False
-        self.show_landmarks = True
+        self.show_landmarks = False  
         self.active_model_type = None
         self.model_loaded = False
         self.detectors = {}
@@ -143,9 +143,11 @@ class VideoProcessor(QObject):
         frame = frame.copy()
         
         try:
+            # Всегда получаем результаты детекции (даже если точки не отображаются)
             face_results = self.detectors['face'].detect(frame) if 'face' in self.detectors else None
             pose_results = self.detectors['pose'].detect(frame) if 'pose' in self.detectors else None
 
+            # Обработка YOLO детекций
             boxes = None
             if self.active_model_type and 'yolo' in self.detectors:
                 try:
@@ -159,6 +161,7 @@ class VideoProcessor(QObject):
                 
                 statuses = []
                 try:
+                    # Всегда используем результаты детекции для проверки СИЗ
                     statuses = self.detectors['siz'].check_items(boxes, pose_results, face_results, frame.shape, class_names)
                 except Exception as e:
                     self.logger.error(f"Compliance check error: {str(e)}")
@@ -169,6 +172,7 @@ class VideoProcessor(QObject):
             else:
                 self.siz_status_changed.emit("nothing")
 
+            # Рисуем ключевые точки только если флаг включен
             if self.show_landmarks and (pose_results or face_results):
                 try:
                     draw_landmarks(frame, pose_results, face_results)
@@ -180,6 +184,7 @@ class VideoProcessor(QObject):
             self.siz_status_changed.emit(False)
         
         return frame
+
 
     def _draw_detections_with_labels(self, frame, boxes, statuses, class_names):
         try:
@@ -216,11 +221,14 @@ class VideoProcessor(QObject):
             h, w, ch = rgb_image.shape
             bytes_per_line = ch * w
             qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-            self.update_frame.emit(qt_image)
+            
+            # Создаем копию изображения для передачи
+            self.update_frame.emit(qt_image.copy())
         except Exception as e:
             self.logger.error(f"Ошибка преобразования кадра: {str(e)}")
 
     @pyqtSlot(bool)
     def toggle_landmarks(self, state):
+        """Только управляет отображением точек, не влияет на детекцию"""
         self.show_landmarks = state
-        self.logger.info(f"Отображение ключевых точек: {'включено' if state else 'выключено'}")
+        self.logger.info(f"Видимость ключевых точек: {'включена' if state else 'выключена'}")

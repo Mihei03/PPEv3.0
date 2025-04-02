@@ -58,6 +58,16 @@ QPushButton {
     font-size: 11px;   /* Чуть уменьшенный шрифт */
 }
 
+/* Добавлено: Эффект при наведении для светлой темы */
+QPushButton:hover {
+    background-color: #d0d0d0;
+}
+
+/* Добавлено: Эффект при нажатии для светлой темы */
+QPushButton:pressed {
+    background-color: #c0c0c0;
+}
+
 /* Специальные кнопки (наследуют базовые стили) */
 QPushButton[text="Обзор"],
 QPushButton[text="+"],
@@ -69,8 +79,9 @@ QPushButton[text="Активировать"] {
 
 /* Кнопка Start/Stop */
 QPushButton#startButton {
-    background-color: #6c757d;
+    background-color: #6c757d; /* серый по умолчанию (неактивна) */
     color: white;
+    border: 1px solid #5a6268;
 }
 
 QPushButton#startButton[state="disabled"] {
@@ -78,25 +89,39 @@ QPushButton#startButton[state="disabled"] {
     color: white !important;
 }
 
-QPushButton#startButton[state="enabled"] {
-    background-color: #28a745;
+QPushButton#startButton:enabled {
+    background-color: #28a745; /* зелёная когда активна */
+    border: 1px solid #218838;
 }
 
-QPushButton#startButton[state="enabled"]:hover {
-    background-color: #218838;
+
+QPushButton#startButton:enabled:hover {
+    background-color: #218838; /* темнее при наведении */
 }
 
-QPushButton#startButton[state="enabled"]:pressed {
-    background-color: #1e7e34;
+
+QPushButton#startButton:enabled:pressed {
+    background-color: #1e7e34; /* ещё темнее при нажатии */
 }
 
+QPushButton#startButton:disabled {
+    background-color: #6c757d !important; /* серая когда отключена */
+    color: #cccccc;
+    border: 1px solid #5a6268;
+}
+
+/* Состояние "Stop" */
 QPushButton#startButton[state="stop"] {
-    background-color: #dc3545;
-    color: white;
+    background-color: #dc3545; /* красная когда активна и нужно остановить */
+    border: 1px solid #c82333;
 }
 
 QPushButton#startButton[state="stop"]:hover {
     background-color: #c82333;
+}
+
+QPushButton#startButton[state="stop"]:pressed {
+    background-color: #bd2130;
 }
 
 /* Кнопка переключения темы (особый случай - квадратная) */
@@ -317,30 +342,48 @@ QHeaderView::section {
 }
 
 /* ==================== ВИДЕОДИСПЛЕЙ ==================== */
-VideoDisplay {
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
-}
-
-QScrollArea, QLabel#videoDisplay {
-    background-color: black;
-}
-
+/* Контейнер для видео */
 QScrollArea {
-    border: 1px solid #444;
+    background: black;
+}
+
+
+/* Виджет видео (чёрный фон по умолчанию) */
+QLabel#videoDisplay {
+    background: black;
+    margin: 0 auto;
+}
+
+QScrollArea > QWidget > QWidget {
+    background: black;
+}
+
+/* Стили для темной темы */
+.dark-mode QLabel#videoDisplay {
+    background-color: #121212;
+}
+
+/* Полоса прокрутки */
+QScrollBar:horizontal {
+    border: none;
+    background: #f0f0f0;
+    height: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background: #c0c0c0;
+    min-width: 20px;
     border-radius: 4px;
 }
 
-/* Темная тема для видеодисплея */
-.dark-mode VideoDisplay {
-    background-color: #000000;
-    border: 1px solid #444444;
+/* Темная тема для горизонтальной прокрутки */
+.dark-mode QScrollBar:horizontal {
+    background: #444444;
 }
 
-.dark-mode QScrollArea,
-.dark-mode QLabel#videoDisplay {
-    background-color: #000000;
-    border-color: #666;
+.dark-mode QScrollBar::handle:horizontal {
+    background: #666666;
 }
 
 /* ==================== СТАТУС БАР ==================== */
