@@ -1,20 +1,22 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from src.config import Config
 import os
 import shutil
+import yaml
+from src.config import Config
 from utils.logger import AppLogger
 
 class ModelHandler(QObject):
     model_loaded = pyqtSignal(str, dict)
     model_loading = pyqtSignal(str)
     models_updated = pyqtSignal()
-
+    
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.logger = AppLogger.get_logger()
         self._current_model = None
         self._model_activated = False
+        self.yolo = None
 
     def current_model(self):
         return self._current_model
@@ -29,8 +31,27 @@ class ModelHandler(QObject):
             
         return sorted(Config.get_available_models().keys())
         
+    def set_yolo_detector(self, yolo_detector):
+        """Явная установка YOLO детектора с проверкой"""
+        if yolo_detector is None:
+            self.logger.error("Попытка установить None как YOLO детектор!")
+            return
+            
+        self.yolo = yolo_detector
+        self.logger.info("YOLO детектор успешно установлен в ModelHandler")
+        
+        # Проверка возможности загрузки модели
+        if hasattr(self._current_model, 'model_name'):
+            self.logger.info(f"Повторная попытка загрузки модели {self._current_model}")
+            self.load_model(self._current_model)
+
     def load_model(self, model_name):
         if not model_name or model_name == "Нет доступных моделей":
+            self.logger.warning("Попытка загрузить пустую модель")
+            return False
+            
+        if self.yolo is None:
+            self.logger.error("YOLO детектор не инициализирован!")
             return False
             
         try:
@@ -38,22 +59,33 @@ class ModelHandler(QObject):
             models = Config.get_available_models()
             
             if model_name not in models:
-                raise ValueError(f"Модель {model_name} не найдена")
+                error_msg = f"Модель {model_name} не найдена"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
                 
             model_info = models[model_name]
-            model_info['class_names'] = self._get_class_names(model_name, model_info)
             
-            if not os.path.exists(model_info['pt_file']) or not os.path.exists(model_info['yaml_file']):
-                raise FileNotFoundError(f"Файлы модели {model_name} не найдены")
+            # Проверка файлов модели
+            if not os.path.exists(model_info['pt_file']):
+                raise FileNotFoundError(f"Файл модели {model_info['pt_file']} не найден")
+                
+            if not os.path.exists(model_info['yaml_file']):
+                raise FileNotFoundError(f"Конфиг {model_info['yaml_file']} не найден")
             
-            self._current_model = model_name
-            self._model_activated = True
-            self.model_loaded.emit(model_name, model_info)
-            return True
+            # Загрузка модели через YOLO детектор
+            if self.yolo.load_model(model_name, model_info):
+                self._current_model = model_name
+                self._model_activated = True
+                self.model_loaded.emit(model_name, model_info)
+                self.logger.info(f"Модель {model_name} успешно загружена")
+                return True
+                
+            self.logger.error(f"Не удалось загрузить модель {model_name}")
+            return False
             
         except Exception as e:
+            self.logger.error(f"Ошибка загрузки модели {model_name}: {str(e)}", exc_info=True)
             self._model_activated = False
-            self.logger.error(f"Ошибка загрузки модели: {str(e)}")
             return False
 
     def is_model_activated(self):
@@ -105,7 +137,6 @@ class ModelHandler(QObject):
     
     def _get_class_names(self, model_name, model_info):
         try:
-            import yaml
             with open(model_info['yaml_file'], 'r') as f:
                 data = yaml.safe_load(f)
                 return data.get('names', [])

@@ -29,6 +29,12 @@ class RtspStorage:
                 self.logger.error(f"Некорректный RTSP URL: {error_msg}")
                 return False
 
+            # Проверка уникальности URL
+            existing_urls = {v['url'] for v in self.get_all_rtsp().values()}
+            if url in existing_urls:
+                self.logger.error(f"RTSP с URL '{url}' уже существует")
+                return False
+        
             with open(self.storage_file, 'r') as f:
                 data = json.load(f)
 

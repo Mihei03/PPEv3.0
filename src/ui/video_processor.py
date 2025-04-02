@@ -6,12 +6,12 @@ from utils.logger import AppLogger
 from src.detection.input_validator import InputValidator, InputType
 
 class VideoProcessor(QObject):
-    update_frame_signal = pyqtSignal(QImage)
+    update_frame = pyqtSignal(QImage)
     siz_status_changed = pyqtSignal(object)
     input_error = pyqtSignal(str)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.timer = QTimer()
         self.logger = AppLogger.get_logger()
         self.timer.timeout.connect(self._process_frame)
@@ -25,12 +25,39 @@ class VideoProcessor(QObject):
         self.show_landmarks = True
         self.active_model_type = None
         self.model_loaded = False
-        self.detectors_ready = False
+        self.detectors = {}
+
+    def set_detectors(self, yolo, face, pose, siz):
+        self.detectors = {
+            'yolo': yolo,
+            'face': face,
+            'pose': pose,
+            'siz': siz
+        }
 
     @pyqtSlot(str, int)
-    def set_video_source(self, source: str, selected_source_type: int):
+    def set_video_source(self, source, selected_source_type):
         self.stop_processing()
+        self._reset_validation()
+
+        input_type, normalized_source, error_msg = InputValidator.validate_input(
+            source, selected_source_type
+        )
         
+        # Устанавливаем свойство valid для соответствующего поля
+        if selected_source_type == 0:  # Камера
+            self.ui.camera_input.setProperty("valid", input_type is not None)
+        elif selected_source_type == 1:  # Видеофайл
+            self.ui.video_input.setProperty("valid", input_type is not None)
+        elif selected_source_type == 2:  # RTSP
+            self.ui.rtsp_input.setProperty("valid", input_type is not None)
+        
+        self._update_input_styles()
+        
+        if error_msg:
+            self.input_error.emit(error_msg)
+            return False
+    
         if self.cap:
             self.cap.release()
         self.cap = None
@@ -52,37 +79,38 @@ class VideoProcessor(QObject):
             elif input_type == InputType.FILE:
                 self.cap = cv2.VideoCapture(normalized_source)
             
-            success = self.is_source_ready()
-            if not success:
-                self.input_error.emit("Не удалось инициализировать источник")
-            return success
+            if self.cap and self.cap.isOpened():
+                self.current_input_type = input_type
+                return True
+            return False
             
         except Exception as e:
             self.input_error.emit(f"Ошибка: {str(e)}")
             return False
 
-    def is_source_ready(self):
-        if self.current_input_type == InputType.IMAGE:
-            return self.current_image is not None
-        return self.cap is not None and self.cap.isOpened()
+    def _reset_validation(self):
+        """Сбрасывает состояние валидации всех полей"""
+        for input_field in [self.ui.camera_input, self.ui.video_input, self.ui.rtsp_input]:
+            input_field.setProperty("valid", "unknown")
+        self._update_input_styles()
 
-    def set_detectors(self, yolo, face, pose, siz):
-        self.yolo = yolo
-        self.face = face
-        self.pose = pose
-        self.siz = siz
-        self.detectors_ready = True
-
+    def _update_input_styles(self):
+        """Обновляет стили всех полей ввода"""
+        for input_field in [self.ui.camera_input, self.ui.video_input, self.ui.rtsp_input]:
+            input_field.style().unpolish(input_field)
+            input_field.style().polish(input_field)
+            input_field.update()
+            
     @pyqtSlot(str, dict)
     def load_model(self, model_type, model_info):
-        if not self.detectors_ready:
+        if not self.detectors:
             return False
             
         try:
-            if self.yolo.load_model(model_type, model_info):
+            if self.detectors['yolo'].load_model(model_type, model_info):
                 self.active_model_type = model_type
                 if 'class_names' in model_info:
-                    self.yolo.class_names[model_type] = model_info['class_names']
+                    self.detectors['yolo'].class_names[model_type] = model_info['class_names']
                 self.model_loaded = True
                 self.logger.info(f"Модель {model_type} загружена успешно")
                 return True
@@ -93,12 +121,8 @@ class VideoProcessor(QObject):
 
     @pyqtSlot()
     def start_processing(self):
-        if not hasattr(self, 'cap') and not hasattr(self, 'current_image'):
+        if not self.cap and not self.current_image:
             self.input_error.emit("Источник не инициализирован")
-            return
-            
-        if self.current_input_type == InputType.IMAGE:
-            self._process_frame()
             return
             
         if not self.timer.isActive():
@@ -140,23 +164,23 @@ class VideoProcessor(QObject):
         frame = frame.copy()
         
         try:
-            face_results = self.face.detect(frame) if hasattr(self.face, 'detect') else None
-            pose_results = self.pose.detect(frame) if hasattr(self.pose, 'detect') else None
+            face_results = self.detectors['face'].detect(frame) if 'face' in self.detectors else None
+            pose_results = self.detectors['pose'].detect(frame) if 'pose' in self.detectors else None
 
             boxes = None
-            if self.active_model_type and hasattr(self.yolo, 'detect'):
+            if self.active_model_type and 'yolo' in self.detectors:
                 try:
-                    _, boxes = self.yolo.detect(frame, self.active_model_type)
+                    _, boxes = self.detectors['yolo'].detect(frame, self.active_model_type)
                 except Exception as e:
                     self.logger.error(f"YOLO detection error: {str(e)}")
                     boxes = None
 
             if boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0:
-                class_names = self.yolo.class_names.get(self.active_model_type, [])
+                class_names = self.detectors['yolo'].class_names.get(self.active_model_type, [])
                 
                 statuses = []
                 try:
-                    statuses = self.siz.check_items(boxes, pose_results, face_results, frame.shape, class_names)
+                    statuses = self.detectors['siz'].check_items(boxes, pose_results, face_results, frame.shape, class_names)
                 except Exception as e:
                     self.logger.error(f"Compliance check error: {str(e)}")
                     statuses = [False] * len(boxes.xyxy)
@@ -180,7 +204,7 @@ class VideoProcessor(QObject):
 
     def _draw_detections_with_labels(self, frame, boxes, statuses, class_names):
         try:
-            if boxes is None or not hasattr(boxes, 'xyxy') or not hasattr(boxes, 'cls') or not hasattr(boxes, 'conf'):
+            if boxes is None or not hasattr(boxes, 'xyxy'):
                 return frame
                 
             for i, box in enumerate(boxes.xyxy):
@@ -213,15 +237,9 @@ class VideoProcessor(QObject):
             h, w, ch = rgb_image.shape
             bytes_per_line = ch * w
             qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-            self.update_frame_signal.emit(qt_image)
+            self.update_frame.emit(qt_image)
         except Exception as e:
             self.logger.error(f"Ошибка преобразования кадра: {str(e)}")
-
-    def cleanup(self):
-        self.stop_processing()
-        if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
-            self.cap.release()
-        self.logger.info("Ресурсы очищены")
 
     @pyqtSlot(bool)
     def toggle_landmarks(self, state):

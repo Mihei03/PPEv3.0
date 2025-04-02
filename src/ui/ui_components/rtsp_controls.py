@@ -29,13 +29,14 @@ class RtspControls(QWidget):
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,
-            is_edit_mode=False  # Явно указываем режим добавления
+            is_edit_mode=False
         )
         
         if dialog.exec():
             data = dialog.get_data()
             if self.manager.rtsp_storage.add_rtsp(data["name"], data["url"], data["comment"]):
                 self.manager.load_data()
+                self.manager.data_changed.emit()  # Отправляем сигнал
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось добавить RTSP поток")
 
@@ -47,25 +48,24 @@ class RtspControls(QWidget):
             return
             
         existing_names = set(self.manager.rtsp_storage.get_all_rtsp().keys())
-        existing_names.remove(selected['name'])  # Удаляем текущее имя из проверки
+        existing_names.remove(selected['name'])
         
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,
-            is_edit_mode=True  # Явно указываем режим редактирования
+            is_edit_mode=True
         )
         
-        # Заполняем поля данными
         dialog.name_input.setText(selected['name'])
         dialog.url_input.setText(selected['url'])
         dialog.comment_input.setPlainText(selected['comment'])
         
         if dialog.exec():
             new_data = dialog.get_data()
-            # Удаляем старую запись и добавляем новую
             if (self.manager.rtsp_storage.remove_rtsp(selected['name']) and 
                 self.manager.rtsp_storage.add_rtsp(new_data["name"], new_data["url"], new_data["comment"])):
                 self.manager.load_data()
+                self.manager.data_changed.emit()  # Отправляем сигнал
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось обновить RTSP поток")
 
@@ -86,5 +86,6 @@ class RtspControls(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             if self.manager.rtsp_storage.remove_rtsp(selected['name']):
                 self.manager.load_data()
+                self.manager.data_changed.emit()  # Отправляем сигнал
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось удалить RTSP поток")

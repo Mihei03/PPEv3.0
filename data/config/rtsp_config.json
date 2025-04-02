@@ -2,5 +2,13 @@
     "\u0410\u0412\u0422\u0424 8 \u044d\u0442\u0430\u0436": {
         "url": "rtsp://viewer:viewernstu1@172.16.4.67:554/h264/ch01/sub/av_stream",
         "comment": "\u041b\u0438\u0444\u0442\u044b 8 \u044d\u0442\u0430\u0436"
+    },
+    "\u0410\u0412\u0422\u0424 218": {
+        "url": "rtsp://viewer:viewernstu1@172.16.4.63:554/h264/ch01/sub/av_stream",
+        "comment": "\u0411\u044b\u0432\u0448\u0430\u044f \u0430\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f Samsung"
+    },
+    "\u0410\u0412\u0422\u0424 108": {
+        "url": "rtsp://viewer:viewernstu1@172.16.4.65:554/h264/ch01/sub/av_stream",
+        "comment": "\u0410\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f \u042d\u043b\u0442\u0435\u043a\u0441"
     }
 }

@@ -28,7 +28,8 @@ class RtspEditDialog(QDialog):
         # Поле для URL
         self.url_input = QLineEdit()
         form.addRow("URL:", self.url_input)
-        
+        self.url_input.textChanged.connect(self._validate_url)
+
         # Поле для комментария
         self.comment_input = QTextEdit()
         form.addRow("Комментарий:", self.comment_input)
@@ -50,6 +51,18 @@ class RtspEditDialog(QDialog):
         
         # Важно: вызываем после создания всех элементов UI
         self._update_ui_for_mode()
+
+    def _validate_url(self):
+        url = self.url_input.text().strip()
+        is_valid, _ = RtspValidator.validate_rtsp_url(url)
+        
+        # Используем свойство вместо прямого setStyleSheet
+        self.url_input.setProperty("valid", is_valid)
+        
+        # Обновляем стиль
+        self.url_input.style().unpolish(self.url_input)
+        self.url_input.style().polish(self.url_input)
+        self.url_input.update()
 
     def _update_ui_for_mode(self):
         """Обновляет UI в зависимости от режима (добавление/редактирование)"""
