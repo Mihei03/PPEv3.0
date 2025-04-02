@@ -1,7 +1,9 @@
 # Игнорировать папки
-/models/
-/logs/
-/config/
+models/
+logs/
+config/
 # Игнорировать файлы
 *.pt
 *.yaml
+
+__pycache__/
