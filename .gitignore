@@ -1,6 +1,5 @@
 # Игнорировать папки
-/models/ppe/
-/models/glass/
+/models/
 /logs/
 /config/
 # Игнорировать файлы
