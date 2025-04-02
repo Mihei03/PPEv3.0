@@ -61,35 +61,45 @@ class MainWindowUI(QMainWindow):
         self._setup_size_policies()
 
     def _init_video_display(self):
-        """Инициализация видео дисплея с центрированием"""
+        """Инициализация видео дисплея с адаптивным растяжением"""
         self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(False)  # Отключаем авто-растяжение контейнера
+        self.scroll_area.setWidgetResizable(False)  # Важно для контроля размеров
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Главный контейнер с центрирующим layout
+        # Главный контейнер
         self.video_container = QWidget()
         self.video_container.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding
         )
         
-        # Центрирующий layout
+        # Основной layout с центрированием
         self.video_layout = QHBoxLayout(self.video_container)
         self.video_layout.setContentsMargins(0, 0, 0, 0)
-        self.video_layout.addStretch(1)  # Добавляем растягивающиеся пространство слева
+        
+        # Центрирующий контейнер
+        self.center_container = QWidget()
+        self.center_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
+        
+        self.center_layout = QVBoxLayout(self.center_container)
+        self.center_layout.setContentsMargins(0, 0, 0, 0)
+        self.center_layout.addStretch(1)  # Гибкое пространство сверху
         
         # Виджет для видео
         self.video_display = QLabel()
         self.video_display.setObjectName("videoDisplay")
         self.video_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.video_display.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding
-        )
         self.video_display.setMinimumSize(640, 480)
         
-        self.video_layout.addWidget(self.video_display)
-        self.video_layout.addStretch(1)  # Добавляем растягивающиеся пространство справа
+        self.center_layout.addWidget(self.video_display)
+        self.center_layout.addStretch(1)  # Гибкое пространство снизу
+        
+        self.video_layout.addStretch(1)  # Гибкое пространство слева
+        self.video_layout.addWidget(self.center_container)
+        self.video_layout.addStretch(1)  # Гибкое пространство справа
         
         self.scroll_area.setWidget(self.video_container)
         self.main_layout.addWidget(self.scroll_area, stretch=1)
@@ -352,24 +362,23 @@ class MainWindowUI(QMainWindow):
                 self.source_input.setText(file_path)
 
     def update_frame(self, q_image):
-        """Обновление кадра с центрированием"""
+        """Обновление кадра с адаптивным растяжением"""
         if not q_image.isNull():
-            # Рассчитываем размеры с сохранением пропорций
-            viewport_size = self.scroll_area.viewport().size()
+            # Рассчитываем максимальные размеры с сохранением пропорций
+            container_size = self.scroll_area.viewport().size()
             aspect_ratio = q_image.width() / q_image.height()
             
-            if viewport_size.width() / viewport_size.height() > aspect_ratio:
-                # Ограничено по высоте
-                height = viewport_size.height()
-                width = int(height * aspect_ratio)
-            else:
-                # Ограничено по ширине
-                width = viewport_size.width()
-                height = int(width / aspect_ratio)
+            # Вычисляем максимально возможные размеры
+            max_width = container_size.width()
+            max_height = int(max_width / aspect_ratio)
+            
+            if max_height > container_size.height():
+                max_height = container_size.height()
+                max_width = int(max_height * aspect_ratio)
             
             # Масштабируем изображение
             scaled_pixmap = QPixmap.fromImage(q_image).scaled(
-                width, height,
+                max_width, max_height,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
             )
@@ -377,9 +386,8 @@ class MainWindowUI(QMainWindow):
             self.video_display.setPixmap(scaled_pixmap)
             self.video_display.setFixedSize(scaled_pixmap.size())
             
-            # Центрируем контейнер
-            self.video_container.setMinimumSize(viewport_size)
-            self.video_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Устанавливаем минимальный размер контейнера
+            self.video_container.setMinimumSize(container_size)
         
     def show_message(self, message, timeout=0):
         self.status_bar.showMessage(message, timeout)
