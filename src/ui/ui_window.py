@@ -322,8 +322,18 @@ class MainWindowUI(QMainWindow):
         self.rtsp_combo.currentTextChanged.connect(self.rtsp_selected.emit)
     
     def _update_current_model(self, model_name):
-        """Просто обновляет текущее название модели без активации"""
+        """Обновляет текущее название модели и состояние кнопки"""
         self._current_model_name = model_name
+        # Делаем кнопку неактивной при изменении модели
+        self.start_btn.setEnabled(False)
+        # Обновляем стиль
+        self._update_start_button_style()
+
+    def _update_start_button_style(self):
+        """Обновляет стиль кнопки запуска"""
+        self.start_btn.style().unpolish(self.start_btn)
+        self.start_btn.style().polish(self.start_btn)
+        self.start_btn.update()
 
     def _activate_model(self):
         """Активация только по кнопке"""

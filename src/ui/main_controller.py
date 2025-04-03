@@ -249,7 +249,6 @@ class MainController(QObject):
             self.ui.browse_btn,
             self.ui.rtsp_combo,
             self.ui.add_rtsp_btn,
-            self.ui.landmarks_check,
             self.ui.model_combo,
             self.ui.activate_model_btn,
             self.ui.manage_models_btn
@@ -258,7 +257,18 @@ class MainController(QObject):
         for widget in widgets:
             widget.setEnabled(not active)
         
-        self.ui.start_btn.setText("Stop" if active else "Start")
+        if active:
+            self.ui.start_btn.setText("Остановить анализ")
+            self.ui.start_btn.setProperty("state", "stop")
+        else:
+            self.ui.start_btn.setText("Запустить анализ")
+            self.ui.start_btn.setProperty("state", "")
+        
+        # Обновляем стиль
+        self.ui.start_btn.style().unpolish(self.ui.start_btn)
+        self.ui.start_btn.style().polish(self.ui.start_btn)
+        self.ui.start_btn.update()
+        
         self.ui.start_btn.setEnabled(True)
 
     @pyqtSlot(str)
@@ -310,11 +320,20 @@ class MainController(QObject):
     def _on_model_loaded(self, model_name, model_info):
         if self.video_processor.load_model(model_name, model_info):
             self.current_model = model_name
-            self.ui.start_btn.setEnabled(True)  # Это должно включать кнопку
+            # Разблокируем кнопку только если модель успешно загружена
+            self.ui.start_btn.setEnabled(True)
+            self._update_start_button_style()
             self.ui.show_message(f"Модель '{model_name}' готова", 3000)
         else:
             self.ui.start_btn.setEnabled(False)
+            self._update_start_button_style()
             self.ui.show_message(f"Ошибка инициализации модели '{model_name}'", 3000)
+
+    def _update_start_button_style(self):
+        """Обновляет стиль кнопки запуска"""
+        self.ui.start_btn.style().unpolish(self.ui.start_btn)
+        self.ui.start_btn.style().polish(self.ui.start_btn)
+        self.ui.start_btn.update()
 
     @pyqtSlot(str, int)
     def _on_video_source_changed(self, source, source_type):

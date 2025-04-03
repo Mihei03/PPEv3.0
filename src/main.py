@@ -2,7 +2,7 @@ import sys
 import os
 import cv2
 from PyQt6.QtWidgets import QApplication, QMessageBox
-from PyQt6.QtCore import QFile, QTextStream, QSettings
+from PyQt6.QtCore import QSettings
 from config import Config
 from utils.logger import AppLogger
 from PyQt6.QtGui import QIcon

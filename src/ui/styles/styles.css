@@ -111,16 +111,16 @@ QPushButton#startButton:disabled {
 }
 
 /* Состояние "Stop" */
-QPushButton#startButton[state="stop"] {
+QPushButton#startButton[state="stop"]:enabled {
     background-color: #dc3545; /* красная когда активна и нужно остановить */
     border: 1px solid #c82333;
 }
 
-QPushButton#startButton[state="stop"]:hover {
+QPushButton#startButton[state="stop"]:enabled:hover {
     background-color: #c82333;
 }
 
-QPushButton#startButton[state="stop"]:pressed {
+QPushButton#startButton[state="stop"]:enabled:pressed {
     background-color: #bd2130;
 }
 
@@ -350,12 +350,12 @@ QScrollArea {
 
 /* Виджет видео (чёрный фон по умолчанию) */
 QLabel#videoDisplay {
-    background: black;
+    background: rgb(255, 255, 255);
     margin: 0 auto;
 }
 
 QScrollArea > QWidget > QWidget {
-    background: black;
+    background: rgb(255, 255, 255);
 }
 
 /* Стили для темной темы */
