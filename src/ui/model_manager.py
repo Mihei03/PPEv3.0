@@ -8,9 +8,10 @@ class ModelManager(QObject):
         self.current_model = None
 
     def activate_model(self):
-        model_name = self.main.ui.model_combo.currentText()
+        # Получаем доступ к комбобоксу через model_panel
+        model_name = self.main.ui.model_panel.model_combo.currentText()
         if not model_name or model_name == "Нет доступных моделей":
-            self.main.ui.show_message("Не выбрана модель", 3000)
+            self.main.ui.status_bar.show_message("Не выбрана модель", 3000)
             return
             
         self.main.logger.info(f"Начало активации модели: {model_name}")
@@ -19,36 +20,38 @@ class ModelManager(QObject):
         try:
             if self.main.model_handler.load_model(model_name):
                 self.current_model = model_name
-                self.main.ui.show_message(f"Модель '{model_name}' активирована", 3000)
-                self.main.ui.start_btn.setEnabled(True)
+                self.main.ui.status_bar.show_message(f"Модель '{model_name}' активирована", 3000)
+                self.main.ui.control_panel.start_btn.setEnabled(True)
             else:
-                self.main.ui.show_message(f"Ошибка активации модели", 3000)
+                self.main.ui.status_bar.show_message("Ошибка активации модели", 3000)
         finally:
             self.main.ui_state_manager.set_ui_enabled(True)
 
     def on_model_loaded(self, model_name, model_info):
         if self.main.video_processor.load_model(model_name, model_info):
             self.current_model = model_name
-            self.main.ui.start_btn.setEnabled(True)
-            self.main.ui.show_message(f"Модель '{model_name}' готова", 3000)
+            # Исправленный доступ к кнопке через control_panel
+            self.main.ui.control_panel.start_btn.setEnabled(True)
+            self.main.ui.status_bar.show_message(f"Модель '{model_name}' готова", 3000)
         else:
-            self.main.ui.start_btn.setEnabled(False)
-            self.main.ui.show_message(f"Ошибка инициализации модели '{model_name}'", 3000)
+            self.main.ui.control_panel.start_btn.setEnabled(False)
+            self.main.ui.status_bar.show_message(f"Ошибка инициализации модели '{model_name}'", 3000)
 
     def on_model_loading(self, model_name):
         self.main.ui.show_message(f"Загрузка модели {model_name}...")
 
     def refresh_models_list(self):
         models = self.main.model_handler.refresh_models_list()
-        self.main.ui.model_combo.clear()
+        self.main.ui.model_panel.model_combo.clear()
         
         if models:
-            self.main.ui.model_combo.addItems(models)
-            self.main.ui.show_message(f"Доступно моделей: {len(models)}", 3000)
+            self.main.ui.model_panel.model_combo.addItems(models)
+            # Гарантированно блокируем кнопку
+            self.main.ui.control_panel.start_btn.setEnabled(False)
+            self.main.ui.status_bar.show_message(f"Доступно моделей: {len(models)}", 3000)
         else:
-            self.main.ui.model_combo.addItem("Нет доступных моделей")
-            self.main.ui.show_message("Модели не найдены! Добавьте модель через меню", 3000)
-            self.main.ui.start_btn.setEnabled(False)
+            self.main.ui.model_panel.model_combo.addItem("Нет доступных моделей")
+            self.main.ui.control_panel.start_btn.setEnabled(False)
 
     def show_models_dialog(self):
         try:

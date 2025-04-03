@@ -7,10 +7,10 @@ class UIStateManager(QObject):
 
     def set_ui_enabled(self, enabled):
         widgets = [
-            self.main.ui.model_combo,
-            self.main.ui.activate_model_btn,
-            self.main.ui.manage_models_btn,
-            self.main.ui.start_btn
+            self.main.ui.model_panel.model_combo,
+            self.main.ui.model_panel.activate_model_btn,
+            self.main.ui.model_panel.manage_models_btn,
+            self.main.ui.control_panel.start_btn
         ]
         for widget in widgets:
             widget.setEnabled(enabled)

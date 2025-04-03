@@ -16,34 +16,33 @@ class ProcessingManager(QObject):
 
     def on_start_processing(self):
         if not self.main.model_manager.current_model:
-            self.main.ui.show_message("Сначала выберите модель!", 3000)
+            self.main.ui.status_bar.show_message("Сначала выберите модель!", 3000)
             return
             
         if not self.main.model_handler.is_model_activated():
-            self.main.ui.show_message("Модель не активирована!", 3000)
+            self.main.ui.status_bar.show_message("Модель не активирована!", 3000)
             return
             
-        source_type = self.main.ui.source_type.currentIndex()
-        source = self.main.ui.source_input.text().strip()
+        # Исправленный доступ к source_type и source_input
+        source_type = self.main.ui.control_panel.source_type.currentIndex()
+        source = self.main.ui.control_panel.source_input.text().strip()
         
         if source_type == 2:  # RTSP
             rtsp_data = self.main.rtsp_manager.get_current_rtsp()
             if not rtsp_data or not rtsp_data.get("url"):
-                self.main.ui.show_warning("Ошибка", "Выберите RTSP поток")
+                self.main.ui.status_bar.show_message("Выберите RTSP поток", 3000)
                 return
             source = rtsp_data["url"]
         
         if not source:
-            self.main.ui.show_warning("Ошибка", "Введите источник видео")
+            self.main.ui.status_bar.show_message("Введите источник видео", 3000)
             return
         
         if self.main.video_processor.set_video_source(source, source_type):
             self.main.processing_active = True
             self.set_processing_state(True)
             self.main.video_processor.start_processing()
-            self.main.ui.show_message("Обработка запущена", 3000)
-        else:
-            self.main.ui.show_message("Ошибка инициализации источника", 3000)
+            self.main.ui.status_bar.show_message("Обработка запущена", 3000)
 
     def on_stop_processing(self):
         self.main.processing_active = False
@@ -56,54 +55,57 @@ class ProcessingManager(QObject):
         self.main.ui.show_message(status_message)
 
     def set_processing_state(self, active):
+        """Обновленный метод с правильными путями доступа"""
         widgets = [
-            self.main.ui.source_type,
-            self.main.ui.source_input,
-            self.main.ui.browse_btn,
-            self.main.ui.rtsp_combo,
-            self.main.ui.add_rtsp_btn,
-            self.main.ui.model_combo,
-            self.main.ui.activate_model_btn,
-            self.main.ui.manage_models_btn
+            self.main.ui.control_panel.source_type,
+            self.main.ui.control_panel.source_input,
+            self.main.ui.control_panel.browse_btn,
+            self.main.ui.control_panel.rtsp_combo,
+            self.main.ui.control_panel.add_rtsp_btn,
+            self.main.ui.model_panel.model_combo,
+            self.main.ui.model_panel.activate_model_btn,
+            self.main.ui.model_panel.manage_models_btn
         ]
         
         for widget in widgets:
             widget.setEnabled(not active)
         
         if active:
-            self.main.ui.start_btn.setText("Остановить анализ")
-            self.main.ui.start_btn.setProperty("state", "stop")
+            self.main.ui.control_panel.start_btn.setText("Остановить анализ")
+            self.main.ui.control_panel.start_btn.setProperty("state", "stop")
         else:
-            self.main.ui.start_btn.setText("Запустить анализ")
-            self.main.ui.start_btn.setProperty("state", "")
+            self.main.ui.control_panel.start_btn.setText("Запустить анализ")
+            self.main.ui.control_panel.start_btn.setProperty("state", "")
         
-        self.main.ui.start_btn.style().unpolish(self.main.ui.start_btn)
-        self.main.ui.start_btn.style().polish(self.main.ui.start_btn)
-        self.main.ui.start_btn.update()
-        self.main.ui.start_btn.setEnabled(True)
+        # Обновляем стиль кнопки
+        self.main.ui.control_panel.start_btn.style().unpolish(self.main.ui.control_panel.start_btn)
+        self.main.ui.control_panel.start_btn.style().polish(self.main.ui.control_panel.start_btn)
+        self.main.ui.control_panel.start_btn.update()
+        
+        self.main.ui.control_panel.start_btn.setEnabled(True)
 
     def update_source_type(self, index):
         placeholders = [
             "Введите индекс камеры (0, 1, ...)",
-            "Введите путь к видеофайлу",
+            "Введите путь к видеофайлу", 
             "Выберите RTSP поток"
         ]
-        self.main.ui.source_input.setPlaceholderText(placeholders[index])
-        self.main.ui.source_input.clear()
+        # Используем правильный путь до source_input
+        self.main.ui.control_panel.source_input.setPlaceholderText(placeholders[index])
         
         is_file = index == 1
         is_rtsp = index == 2
         
-        self.main.ui.browse_btn.setVisible(is_file)
-        self.main.ui.rtsp_combo.setVisible(is_rtsp)
-        self.main.ui.add_rtsp_btn.setVisible(is_rtsp)
-        self.main.ui.source_input.setVisible(not is_rtsp)
+        self.main.ui.control_panel.browse_btn.setVisible(is_file)
+        self.main.ui.control_panel.rtsp_combo.setVisible(is_rtsp)
+        self.main.ui.control_panel.add_rtsp_btn.setVisible(is_rtsp)
+        self.main.ui.control_panel.source_input.setVisible(not is_rtsp)
         
-        if index == 0:  # Камера
-            self.main.ui.source_input.setText("0")
+        if index == 0:
+            self.main.ui.control_panel.source_input.setText("0")
 
     def handle_file_browse(self):
-        if self.main.ui.source_type.currentIndex() != 1:
+        if self.main.ui.control_panel.source_type.currentIndex() != 1:
             return
 
         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -115,7 +117,7 @@ class ProcessingManager(QObject):
         )
         
         if file_path:
-            self.main.ui.source_input.setText(file_path)
+            self.main.ui.control_panel.source_input.setText(file_path)
             self.validate_video_source(file_path)
 
     def validate_video_source(self, file_path):
@@ -125,15 +127,16 @@ class ProcessingManager(QObject):
         if is_valid:
             success = self.main.video_processor.set_video_source(file_path, 1)
             if not success:
-                self.main.ui.show_message("Не удалось загрузить видеофайл", 3000)
+                self.main.ui.status_bar.show_message("Не удалось загрузить видеофайл", 3000)
         else:
-            self.main.ui.show_message("Файл не существует", 3000)
+            self.main.ui.status_bar.show_message("Файл не существует", 3000)
 
     def set_input_validation_style(self, is_valid):
-        self.main.ui.source_input.setProperty("valid", str(is_valid).lower())
-        self.main.ui.source_input.style().unpolish(self.main.ui.source_input)
-        self.main.ui.source_input.style().polish(self.main.ui.source_input)
-        self.main.ui.source_input.update()
+        """Исправленный доступ к source_input"""
+        self.main.ui.control_panel.source_input.setProperty("valid", str(is_valid).lower())
+        self.main.ui.control_panel.source_input.style().unpolish(self.main.ui.control_panel.source_input)
+        self.main.ui.control_panel.source_input.style().polish(self.main.ui.control_panel.source_input)
+        self.main.ui.control_panel.source_input.update()
 
     def update_siz_status(self, status):
         try:
@@ -153,6 +156,6 @@ class ProcessingManager(QObject):
             self.main.ui.show_message("Ошибка обновления статуса")
 
     def on_input_error(self, error_msg):
+        self.main.ui.status_bar.show_message(error_msg, 5000)
+        self.main.ui.control_panel.start_btn.setEnabled(False)
         self.main.ui.show_warning("Ошибка источника", error_msg)
-        self.main.ui.show_message(error_msg, 5000)
-        self.main.ui.start_btn.setEnabled(False)

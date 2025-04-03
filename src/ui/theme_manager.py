@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QWidget
 
 class ThemeManager(QObject):
     def __init__(self, main_controller):
@@ -35,7 +35,7 @@ class ThemeManager(QObject):
                 continue
 
     def update_theme_button(self):
-        self.main.ui.theme_btn.setText("☀️" if self._dark_mode else "🌙")
+        self.main.ui.status_bar.theme_btn.setText("☀️" if self._dark_mode else "🌙")
 
     def load_theme_settings(self):
         self.update_theme_button()
