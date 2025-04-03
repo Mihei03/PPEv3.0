@@ -3,7 +3,12 @@ import os
 class Config:
     CAMERA_INDEX = 0
     MODELS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "PPEV3.0", "data", "models")
-    
+    RTSP_SETTINGS = {
+        'timeout': 5000,       # Таймаут подключения (мс)
+        'buffer_size': 1,      # Размер буфера кадров
+        'reconnect_delay': 3,  # Задержка переподключения (сек)
+        'max_fps': 30          # Максимальный FPS
+    }
     @staticmethod
     def get_available_models():
         """Возвращает доступные модели"""

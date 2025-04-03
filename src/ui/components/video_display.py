@@ -10,7 +10,7 @@ class VideoDisplay:
         
     def _setup_display(self):
         self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(False)
+        self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         self.video_container = QWidget()
