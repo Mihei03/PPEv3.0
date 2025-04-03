@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt
 
 class RtspTable(QTableWidget):
     def __init__(self):

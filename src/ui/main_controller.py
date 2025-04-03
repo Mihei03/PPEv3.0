@@ -61,7 +61,11 @@ class MainController(QObject):
         # UI сигналы
         self.ui.start_btn.clicked.connect(self._on_start_stop)
         self.ui.landmarks_check.stateChanged.connect(
-            lambda state: self.video_processor.toggle_landmarks(state == Qt.CheckState.Checked.value)
+            lambda state: (
+                self.logger.debug(f"Landmarks checkbox changed to: {state}"),
+                self.video_processor.toggle_landmarks(state == Qt.CheckState.Checked.value),
+                self.logger.debug(f"Detectors: Face={self.detection_controller.face is not None}, Pose={self.detection_controller.pose is not None}")
+            )
         )
         self.ui.activate_model_btn.clicked.connect(self._activate_model)
         self.ui.manage_models_btn.clicked.connect(self._show_models_dialog)
