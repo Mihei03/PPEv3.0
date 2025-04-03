@@ -1,13 +1,14 @@
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
-from utils.logger import AppLogger
+from core.utils.logger import AppLogger
 from .input_handler import InputHandler
-from .frame_processor import FrameProcessor
+from src.core.processing.frame_processor import FrameProcessor
 from PyQt6.QtGui import QImage
 
 class VideoProcessor(QObject):
     update_frame = pyqtSignal(QImage)
     siz_status_changed = pyqtSignal(object)
     input_error = pyqtSignal(str)
+    processing_stopped = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -58,7 +59,9 @@ class VideoProcessor(QObject):
         if self.timer.isActive():
             self.timer.stop()
         self.processing_active = False
-        self.logger.info("Обработка видео остановлена")
+        self.input_handler.release()
+        self.processing_stopped.emit()  # Отправляем сигнал
+        self.logger.info("Обработка видео остановлена, ресурсы освобождены")
 
     def _process_frame(self):
         frame = self.input_handler.get_frame()

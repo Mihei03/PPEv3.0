@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QTextEdit, QDialogButtonBox, QMessageBox
 )
 from PyQt6.QtCore import Qt
-from src.detection.rtsp_validator import RtspValidator
+from core.utils.rtsp_validator import RtspValidator
 
 
 class RtspEditDialog(QDialog):

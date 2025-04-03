@@ -46,13 +46,23 @@ class ProcessingManager(QObject):
 
     def on_stop_processing(self):
         self.main.processing_active = False
-        self.set_processing_state(False)
         self.main.video_processor.stop_processing()
         
+        # Обновляем текст кнопки
+        self.main.ui.control_panel.start_btn.setText("Запустить анализ")
+        self.main.ui.control_panel.start_btn.setProperty("state", "")
+        
+        # Обновляем стиль кнопки
+        self.main.ui.control_panel.start_btn.style().unpolish(self.main.ui.control_panel.start_btn)
+        self.main.ui.control_panel.start_btn.style().polish(self.main.ui.control_panel.start_btn)
+        self.main.ui.control_panel.start_btn.update()
+        
+        # Освобождаем ресурсы
+        if hasattr(self.main, 'input_handler') and self.main.input_handler.cap:
+            self.main.input_handler.release()
+        
         status_message = f"Обработка остановлена | Модель: {self.main.model_manager.current_model}"
-        if self.current_siz_status is not None:
-            status_message += f" | Статус СИЗ: {'OK' if self.current_siz_status else 'Ошибка'}"
-        self.main.ui.show_message(status_message)
+        self.main.ui.status_bar.show_message(status_message)
 
     def set_processing_state(self, active):
         """Обновленный метод с правильными путями доступа"""
@@ -81,7 +91,7 @@ class ProcessingManager(QObject):
         self.main.ui.control_panel.start_btn.style().unpolish(self.main.ui.control_panel.start_btn)
         self.main.ui.control_panel.start_btn.style().polish(self.main.ui.control_panel.start_btn)
         self.main.ui.control_panel.start_btn.update()
-        
+            
         self.main.ui.control_panel.start_btn.setEnabled(True)
 
     def update_source_type(self, index):

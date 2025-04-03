@@ -1,4 +1,4 @@
-from utils.logger import AppLogger
+from core.utils.logger import AppLogger
 import numpy as np
 
 class SIZDetector:

@@ -1,15 +1,15 @@
 from PyQt6.QtCore import QObject, pyqtSlot, QSettings, pyqtSignal, Qt
 from .theme_manager import ThemeManager
-from .model_manager import ModelManager
-from .rtsp_manager import RtspManager
+from ..models.model_manager import ModelManager
+from ..models.rtsp_manager import RtspManager
 from .processing_manager import ProcessingManager
-from utils.logger import AppLogger
-from detection.yolo.yolo_detector import YOLODetector
+from core.utils.logger import AppLogger
+from core.detection.yolo_detector import YOLODetector
 from models.model_handler import ModelHandler
 from .detection_controller import DetectionController
-from .video_processor import VideoProcessor
+from ..processing.video_processor import VideoProcessor
 from .ui_state_manager import UIStateManager
-from .ui_builder import UIBuilder
+from ...ui.builders.ui_builder import UIBuilder
 import os
 
 class MainController(QObject):
@@ -27,7 +27,7 @@ class MainController(QObject):
         self.ui.ui_builder.build_ui()
 
         if not hasattr(self.ui, 'control_panel'):
-            from ui.control_panel import ControlPanel
+            from ui.components.control_panel import ControlPanel
             self.ui.control_panel = ControlPanel(self.ui)
 
         # Делаем компоненты доступными
@@ -53,7 +53,8 @@ class MainController(QObject):
         self.model_manager.refresh_models_list()
         self.rtsp_manager.load_rtsp_list()  # Теперь UI точно готов
         self.theme_manager.load_theme_settings()
-    
+        self.ui.destroyed.connect(self.cleanup)
+
     def _init_components(self):
         self.yolo_detector = YOLODetector()
         self.model_handler = ModelHandler()
@@ -78,6 +79,9 @@ class MainController(QObject):
         )
         self.ui.model_panel.model_combo.currentTextChanged.connect(
             self._handle_model_changed
+        )
+        self.video_processor.processing_stopped.connect(
+            lambda: self.processing_manager.set_processing_state(False)
         )
         self.ui.control_panel.source_input.textChanged.connect(
             self._validate_source_input
@@ -111,6 +115,14 @@ class MainController(QObject):
         """Дополнительная обработка изменения модели"""
         self.ui.control_panel.start_btn.setEnabled(False)
         self.ui.status_bar.show_message("Выбрана новая модель - требуется активация", 2000)
+
+    def cleanup(self):
+        """Освобождение ресурсов при закрытии"""
+        if hasattr(self, 'video_processor'):
+            self.video_processor.stop_processing()
+        if hasattr(self, 'input_handler') and self.input_handler.cap:
+            self.input_handler.release()
+        self.logger.info("Приложение завершает работу, ресурсы освобождены")
 
     def _validate_source_input(self):
         source_type = self.ui.control_panel.source_type.currentIndex()

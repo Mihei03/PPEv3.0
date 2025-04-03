@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 from typing import Dict
-from utils.logger import AppLogger
-from src.detection.rtsp_validator import RtspValidator 
+from core.utils.logger import AppLogger
+from core.utils.rtsp_validator import RtspValidator 
 
 
 class RtspStorage:

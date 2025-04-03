@@ -1,7 +1,7 @@
 import cv2
 import mediapipe as mp
-from utils.logger import AppLogger
-from src.utils.drawing_utils import draw_landmarks  # Импорт оригинальной функции
+from core.utils.logger import AppLogger
+from core.utils.drawing_utils import draw_landmarks  # Импорт оригинальной функции
 
 class DetectionDrawer:
     def __init__(self):

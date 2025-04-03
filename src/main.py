@@ -4,7 +4,7 @@ import cv2
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QSettings
 from config import Config
-from utils.logger import AppLogger
+from core.utils.logger import AppLogger
 from PyQt6.QtGui import QIcon
 
 def check_camera():
@@ -112,8 +112,8 @@ def main():
     show_warning_messages(app)
     
     try:
+        from src.core.controllers.main_controller import MainController
         from src.ui.ui_window import MainWindowUI
-        from src.ui.main_controller import MainController
         
         # Создание окна ПОСЛЕ применения стилей
         window = MainWindowUI()

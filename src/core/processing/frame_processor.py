@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 from PyQt6.QtGui import QImage
-from utils.logger import AppLogger
-from .detection_drawer import DetectionDrawer
+from core.utils.logger import AppLogger
+from src.ui.builders.detection_drawer import DetectionDrawer
 
 class FrameProcessor:
     def __init__(self):

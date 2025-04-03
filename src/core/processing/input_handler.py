@@ -1,6 +1,6 @@
 import cv2
-from utils.logger import AppLogger
-from src.detection.input_validator import InputValidator, InputType
+from core.utils.logger import AppLogger
+from core.utils.input_validator import InputValidator, InputType
 
 class InputHandler:
     def __init__(self):
@@ -50,5 +50,8 @@ class InputHandler:
         return self.current_input_type == InputType.FILE
 
     def release(self):
-        if self.cap:
+        """Явное освобождение ресурсов камеры"""
+        if self.cap and self.cap.isOpened():
             self.cap.release()
+            self.cap = None
+            self.logger.info("Ресурсы камеры освобождены")

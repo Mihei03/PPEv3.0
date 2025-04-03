@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 import yaml
-from utils.logger import AppLogger
+from core.utils.logger import AppLogger
 import os 
 
 class YOLODetector:

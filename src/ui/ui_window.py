@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow
-from .ui_builder import UIBuilder
+from .builders.ui_builder import UIBuilder
 
 class MainWindowUI(QMainWindow):
     def __init__(self, parent=None):
@@ -22,3 +22,9 @@ class MainWindowUI(QMainWindow):
         """Метод для показа предупреждений"""
         from PyQt6.QtWidgets import QMessageBox
         QMessageBox.warning(self, title, message)
+    
+    def closeEvent(self, event):
+        """Обработчик закрытия окна"""
+        if hasattr(self, 'controller'):
+            self.controller.cleanup()
+        super().closeEvent(event)

@@ -1,7 +1,7 @@
-from src.detection.yolo.yolo_detector import YOLODetector
-from src.detection.face_detection import FaceDetector
-from src.detection.pose_detection import PoseDetector
-from src.detection.siz_detection import SIZDetector
+from core.detection.yolo_detector import YOLODetector
+from core.detection.face_detection import FaceDetector
+from core.detection.pose_detection import PoseDetector
+from core.detection.siz_detection import SIZDetector
 
 class DetectionController:
     def __init__(self):

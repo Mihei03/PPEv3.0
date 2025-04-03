@@ -4,7 +4,7 @@ import os
 import shutil
 import yaml
 from src.config import Config
-from utils.logger import AppLogger
+from core.utils.logger import AppLogger
 
 class ModelHandler(QObject):
     model_loaded = pyqtSignal(str, dict)

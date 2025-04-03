@@ -1,8 +1,8 @@
 from PyQt6.QtCore import pyqtSignal
-from .video_display import VideoDisplay
-from .model_panel import ModelPanel
-from .control_panel import ControlPanel
-from .status_bar import StatusBar
+from ..components.video_display import VideoDisplay
+from ..components.model_panel import ModelPanel
+from ..components.control_panel import ControlPanel
+from ..components.status_bar import StatusBar
 
 class UIBuilder:
     def __init__(self, main_window):
