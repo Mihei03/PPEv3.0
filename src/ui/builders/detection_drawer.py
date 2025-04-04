@@ -1,5 +1,6 @@
 import cv2
 import mediapipe as mp
+import numpy as np
 from core.utils.logger import AppLogger
 from core.utils.drawing_utils import draw_landmarks  # Импорт оригинальной функции
 
@@ -22,10 +23,20 @@ class DetectionDrawer:
             
         class_names = self.detectors['yolo'].class_names.get(model_type, [])
         
+        # Явное преобразование статусов
+        if statuses == "nothing":
+            statuses = []
+        elif isinstance(statuses, (bool, int, float)):
+            statuses = [bool(statuses)] * len(boxes.xyxy)
+        elif hasattr(statuses, '__iter__'):
+            statuses = [bool(s) if not isinstance(s, str) else False for s in statuses]
+        else:
+            statuses = [False] * len(boxes.xyxy)
+        
         for i, box in enumerate(boxes.xyxy):
             try:
                 x1, y1, x2, y2 = map(int, box.cpu().numpy())
-                status = statuses[i] if isinstance(statuses, list) and i < len(statuses) else statuses
+                status = statuses[i] if i < len(statuses) else False
                 
                 cls_id = int(boxes.cls[i].cpu().numpy()) if i < len(boxes.cls) else 0
                 conf = float(boxes.conf[i].cpu().numpy()) if i < len(boxes.conf) else 0.0
@@ -46,6 +57,9 @@ class DetectionDrawer:
     def draw_landmarks(self, frame, pose_results, face_results):
         """Используем оригинальную функцию из drawing_utils.py"""
         try:
+            if pose_results is None and face_results is None:
+                return frame
+                
             # Создаем копию изображения для рисования
             image_to_draw = frame.copy()
             

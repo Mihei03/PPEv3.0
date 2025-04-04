@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from .builders.ui_builder import UIBuilder
 
 class MainWindowUI(QMainWindow):
@@ -19,8 +19,6 @@ class MainWindowUI(QMainWindow):
         self.status_bar.show_message(message, timeout)
     
     def show_warning(self, title, message):
-        """Метод для показа предупреждений"""
-        from PyQt6.QtWidgets import QMessageBox
         QMessageBox.warning(self, title, message)
     
     def closeEvent(self, event):

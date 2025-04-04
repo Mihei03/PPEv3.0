@@ -59,16 +59,16 @@ class SIZDetector:
                     class_name = str(class_names[class_id]) if (class_names and class_id < len(class_names)) else str(class_id)
                     status = False
                     
-                    if 'glass' in class_name:
-                        status = self._check_glasses(box, face_results, w, h)
-                    elif 'glove' in class_name:
-                        status = self._check_helmet(box, pose_results, w, h)
-                    elif 'helmet' in class_name:
-                        status = self._check_vest(box, face_results, w, h)
-                    elif 'pants' in class_name:
-                        status = self._check_glove(box, pose_results, w, h)
-                    elif 'vest' in class_name:
-                        status = self._check_boots(box, pose_results, w, h)
+                    if 'glass' in class_name.lower():
+                        status = bool(self._check_glasses(box, face_results, w, h))  # Явное преобразование
+                    elif 'glove' in class_name.lower():
+                        status = bool(self._check_glove(box, pose_results, w, h))
+                    elif 'helmet' in class_name.lower():
+                        status = bool(self._check_helmet(box, pose_results, w, h))
+                    elif 'pants' in class_name.lower():
+                        status = bool(self._check_pants(box, pose_results, w, h))
+                    elif 'vest' in class_name.lower():
+                        status = bool(self._check_vest(box, pose_results, w, h))
                         
                     statuses.append(status)
                     
@@ -76,12 +76,13 @@ class SIZDetector:
                     self.logger.warning(f"Error processing box {i}: {str(e)}")
                     statuses.append(False)
                     
-            return statuses
+            return statuses  # Гарантированно возвращаем список bool
             
         except Exception as e:
             self.logger.error(f"Check items error: {str(e)}")
             return []
 
+    # Остальные методы класса остаются без изменений
     def _check_glasses(self, box, face_results, img_w, img_h):
         """Проверка положения очков"""
         if not face_results or not hasattr(face_results, 'multi_face_landmarks'):
@@ -120,9 +121,9 @@ class SIZDetector:
         
         return left_covered or right_covered
 
-    def _check_helmet(self, box, face_results, img_w, img_h):
+    def _check_helmet(self, box, pose_results, img_w, img_h):
         """Проверка каски"""
-        if not face_results or not hasattr(face_results, 'pose_landmarks'):
+        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
             return False
 
         x1, y1, x2, y2 = map(int, box.cpu().numpy())
@@ -130,7 +131,7 @@ class SIZDetector:
         
         covered = sum(
             1 for i in self.params['helmet']['head_points']
-            if self._is_landmark_covered(face_results.pose_landmarks.landmark[i], helmet_rect, img_w, img_h)
+            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], helmet_rect, img_w, img_h)
         )
         return (covered / len(self.params['helmet']['head_points'])) >= self.params['helmet']['min_coverage']
     
@@ -170,10 +171,6 @@ class SIZDetector:
         )
         return covered >= self.params['vest']['min_points']
 
-    def _validate_boxes(self, boxes):
-        """Проверка валидности входных боксов"""
-        return boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0
-
     def _check_eye_coverage(self, face_landmarks, eye_points, rect, img_w, img_h):
         """Проверка покрытия глаза"""
         covered = sum(
@@ -181,16 +178,6 @@ class SIZDetector:
             if self._is_landmark_covered(face_landmarks.landmark[i], rect, img_w, img_h)
         )
         return (covered / len(eye_points)) >= self.params['glasses']['min_coverage']
-
-    def _validate_input(self, boxes):
-        """Проверка валидности входных данных"""
-        return boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0
-
-    def _get_class_name(self, class_id, class_names):
-        """Получение имени класса с защитой от ошибок"""
-        if class_names and class_id < len(class_names):
-            return str(class_names[class_id]).lower()
-        return str(class_id)
 
     def _check_coverage(self, pose_results, points, rect, img_w, img_h):
         """Проверка покрытия для набора точек"""

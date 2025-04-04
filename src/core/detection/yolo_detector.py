@@ -56,11 +56,17 @@ class YOLODetector:
             return frame, None
         
         boxes = results[0].boxes
-        confidences = boxes.conf.cpu().numpy()
-        class_ids = boxes.cls.cpu().numpy().astype(int)
+        
+        # Явное преобразование статусов
+        if statuses is not None:
+            if hasattr(statuses, '__iter__') and not isinstance(statuses, (str, bool)):
+                statuses = [bool(s) for s in statuses]  # Преобразуем каждый элемент
         
         if statuses is not None:
-            frame = self._draw_custom_boxes(frame, boxes.xyxy, confidences, class_ids, statuses, model_type)
+            frame = self._draw_custom_boxes(frame, boxes.xyxy.cpu().numpy(), 
+                                        boxes.conf.cpu().numpy(), 
+                                        boxes.cls.cpu().numpy().astype(int),
+                                        statuses, model_type)
         else:
             frame = results[0].plot()
         

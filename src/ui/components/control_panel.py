@@ -83,12 +83,27 @@ class ControlPanel:
     def _setup_validation(self):
         self.source_input.textChanged.connect(self._validate_current_input)
         self.source_type.currentIndexChanged.connect(self._update_validation)
+        self.start_btn.clicked.connect(self._handle_start_btn_click)  # Добавляем этот обработчик
         self._update_validation()
     
+    def _handle_start_btn_click(self):
+        """Обработчик клика на кнопку запуска, когда она заблокирована"""
+        if not self.start_btn.isEnabled():
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self.panel,  # Родительский виджет
+                "Нельзя запустить анализ",
+                "Для запуска анализа необходимо:\n"
+                "1. Выбрать модель из списка\n"
+                "2. Указать корректный источник видео\n"
+                "3. Активировать модель",
+                QMessageBox.StandardButton.Ok
+            )
+
     def _update_validation(self):
         placeholders = [
             "Введите индекс камеры (0, 1, ...)",
-            "Введите путь к видеофайлу",
+            "Введите путь к видеофайлу или выберите его через 'Обзор'",
             "Введите RTSP URL (rtsp://...)"
         ]
         self.source_input.setPlaceholderText(placeholders[self.source_type.currentIndex()])
@@ -97,6 +112,12 @@ class ControlPanel:
     def _validate_current_input(self, text):
         source_type = self.source_type.currentIndex()
         text = text.strip()
+        
+        # Если переключились на видеофайл и текст остался "0" - считаем невалидным
+        if source_type == 1 and text == "0":
+            self._set_input_validity(False)
+            self.source_input.setToolTip("Введите путь к видеофайлу или выберите его через 'Обзор'")
+            return
         
         try:
             if source_type == 0:  # Камера
@@ -123,8 +144,8 @@ class ControlPanel:
             return False, "Введите числовой индекс камеры (0, 1, ...)"
 
     def _validate_video(self, text):
-        if not text:
-            return False, "Введите путь к видеофайлу"
+        if not text or text.strip() == "0":  # Явная проверка на "0"
+            return False, "Введите путь к видеофайлу или выберите его через 'Обзор'"
         
         valid = text.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
         if not valid:
@@ -142,7 +163,8 @@ class ControlPanel:
 
     def _set_input_validity(self, is_valid):
         """Устанавливает стиль поля ввода на основе валидности"""
-        self.source_input.setProperty("valid", str(is_valid).lower())
+        # is_valid должен быть булевым значением
+        self.source_input.setProperty("valid", "true" if is_valid else "false")  # Здесь строка допустима для QSS
         self.source_input.style().unpolish(self.source_input)
         self.source_input.style().polish(self.source_input)
         self.source_input.update()
@@ -150,7 +172,7 @@ class ControlPanel:
     def _update_source_type(self, index):
         placeholders = [
             "Введите индекс камеры (0, 1, ...)",
-            "Введите путь к видеофайлу",
+            "Введите путь к видеофайлу или выберите его через 'Обзор'",
             "Введите RTSP URL (rtsp://...)"
         ]
         self.source_input.setPlaceholderText(placeholders[index])
@@ -163,5 +185,14 @@ class ControlPanel:
         self.add_rtsp_btn.setVisible(is_rtsp)
         self.source_input.setVisible(not is_rtsp)
         
-        if index == 0:
+        # Очищаем поле при переключении на файл или RTSP
+        if index != 0:  # Если не камера
+            self.source_input.clear()
+        else:
+            # Только для камеры устанавливаем значение по умолчанию "0"
             self.source_input.setText("0")
+        
+        # Принудительно запускаем валидацию
+        self._validate_current_input(self.source_input.text())
+        # Блокируем кнопку запуска при смене типа
+        self.start_btn.setEnabled(False)

@@ -15,34 +15,84 @@ class ProcessingManager(QObject):
             self.on_start_processing()
 
     def on_start_processing(self):
-        if not self.main.model_manager.current_model:
-            self.main.ui.status_bar.show_message("Сначала выберите модель!", 3000)
-            return
-            
-        if not self.main.model_handler.is_model_activated():
-            self.main.ui.status_bar.show_message("Модель не активирована!", 3000)
-            return
-            
-        # Исправленный доступ к source_type и source_input
-        source_type = self.main.ui.control_panel.source_type.currentIndex()
-        source = self.main.ui.control_panel.source_input.text().strip()
-        
-        if source_type == 2:  # RTSP
-            rtsp_data = self.main.rtsp_manager.get_current_rtsp()
-            if not rtsp_data or not rtsp_data.get("url"):
-                self.main.ui.status_bar.show_message("Выберите RTSP поток", 3000)
+        try:
+            # Проверяем активацию модели
+            if not self.main.model_handler.is_model_activated():
+                self._show_error_message(
+                    "Модель не активирована",
+                    "Перед запуском анализа необходимо активировать модель"
+                )
                 return
-            source = rtsp_data["url"]
-        
-        if not source:
-            self.main.ui.status_bar.show_message("Введите источник видео", 3000)
-            return
-        
-        if self.main.video_processor.set_video_source(source, source_type):
-            self.main.processing_active = True
-            self.set_processing_state(True)
-            self.main.video_processor.start_processing()
-            self.main.ui.status_bar.show_message("Обработка запущена", 3000)
+
+            source_type = self.main.ui.control_panel.source_type.currentIndex()
+            source = self.main.ui.control_panel.source_input.text().strip()
+
+            # Проверка для камеры
+            if source_type == 0:
+                try:
+                    camera_idx = int(source)
+                    if camera_idx < 0:
+                        raise ValueError("Индекс камеры должен быть ≥ 0")
+                except ValueError as e:
+                    self._show_error_message("Неверный индекс камеры", str(e))
+                    return
+
+            # Проверка для файлового источника
+            elif source_type == 1:
+                if not source or source == "0":
+                    self._show_error_message(
+                        "Файл не выбран",
+                        "Пожалуйста, выберите видеофайл для анализа"
+                    )
+                    return
+                if not os.path.exists(source):
+                    self._show_error_message(
+                        "Файл не найден",
+                        f"Указанный файл не существует:\n{source}"
+                    )
+                    return
+
+            # Проверка для RTSP
+            elif source_type == 2:
+                rtsp_data = self.main.rtsp_manager.get_current_rtsp()
+                if not rtsp_data or not rtsp_data.get("url"):
+                    self._show_error_message(
+                        "RTSP не выбран",
+                        "Пожалуйста, выберите RTSP поток из списка"
+                    )
+                    return
+                source = rtsp_data["url"]
+
+            # Инициализация источника
+            success, error_msg = self.main.input_handler.setup_source(source, source_type)
+            if not success:
+                self._show_error_message("Ошибка источника", error_msg)
+                return
+
+            # Запуск обработки
+            if self.main.video_processor.set_video_source(source, source_type):
+                self.main.processing_active = True
+                self.set_processing_state(True)
+                self.main.video_processor.start_processing()
+                self.main.ui.status_bar.show_message("Обработка запущена", 3000)
+
+        except Exception as e:
+            self.main.processing_active = False
+            self.set_processing_state(False)
+            # Улучшенное сообщение об ошибке
+            error_msg = str(e)
+            if "input_handler" in error_msg:
+                error_msg = "Ошибка инициализации видео источника"
+            self._show_error_message(
+                "Ошибка запуска",
+                f"Не удалось запустить обработку:\n{error_msg}"
+            )
+            self.main.logger.error(f"Ошибка запуска обработки: {error_msg}")
+
+    def _show_error_message(self, title, message):
+        """Универсальный метод для показа сообщений об ошибках"""
+        self.main.ui.show_warning(title, message)
+        self.main.ui.status_bar.show_message(f"Ошибка: {message}", 5000)
 
     def on_stop_processing(self):
         self.main.processing_active = False
@@ -97,7 +147,7 @@ class ProcessingManager(QObject):
     def update_source_type(self, index):
         placeholders = [
             "Введите индекс камеры (0, 1, ...)",
-            "Введите путь к видеофайлу", 
+            "Введите путь к видеофайлу или выберите его через 'Обзор'", 
             "Выберите RTSP поток"
         ]
         # Используем правильный путь до source_input
@@ -111,8 +161,15 @@ class ProcessingManager(QObject):
         self.main.ui.control_panel.add_rtsp_btn.setVisible(is_rtsp)
         self.main.ui.control_panel.source_input.setVisible(not is_rtsp)
         
-        if index == 0:
+        # Очищаем поле при переключении на файл или RTSP
+        if index != 0:  # Если не камера
+            self.main.ui.control_panel.source_input.clear()
+        else:
+            # Только для камеры устанавливаем значение по умолчанию "0"
             self.main.ui.control_panel.source_input.setText("0")
+        
+        # Принудительно запускаем валидацию
+        self.main.ui.control_panel._validate_current_input(self.main.ui.control_panel.source_input.text())
 
     def handle_file_browse(self):
         if self.main.ui.control_panel.source_type.currentIndex() != 1:

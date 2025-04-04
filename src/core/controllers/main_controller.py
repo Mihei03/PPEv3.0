@@ -1,4 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSlot, QSettings, pyqtSignal, Qt
+
+from core.processing.input_handler import InputHandler
 from .theme_manager import ThemeManager
 from ..models.model_manager import ModelManager
 from ..models.rtsp_manager import RtspManager
@@ -25,6 +27,8 @@ class MainController(QObject):
         # 1. Сначала инициализируем UI
         self.ui.ui_builder = UIBuilder(self.ui)
         self.ui.ui_builder.build_ui()
+
+        self.input_handler = InputHandler()
 
         if not hasattr(self.ui, 'control_panel'):
             from ui.components.control_panel import ControlPanel
@@ -118,27 +122,30 @@ class MainController(QObject):
 
     def cleanup(self):
         """Освобождение ресурсов при закрытии"""
-        if hasattr(self, 'video_processor'):
-            self.video_processor.stop_processing()
-        if hasattr(self, 'input_handler') and self.input_handler.cap:
-            self.input_handler.release()
-        self.logger.info("Приложение завершает работу, ресурсы освобождены")
+        try:
+            if hasattr(self, 'video_processor'):
+                self.video_processor.cleanup()  # Используем новый метод cleanup
+            if hasattr(self, 'input_handler') and self.input_handler.cap:
+                self.input_handler.release()
+            self.logger.info("Приложение завершает работу, ресурсы освобождены")
+        except Exception as e:
+            self.logger.error(f"Ошибка при очистке ресурсов: {str(e)}")
 
     def _validate_source_input(self):
         source_type = self.ui.control_panel.source_type.currentIndex()
-        source = self.ui.control_panel.source_input.text()
+        source = self.ui.control_panel.source_input.text().strip()
         
+        # Базовая проверка заполненности поля
         if source_type == 0:  # Камера
             try:
                 camera_idx = int(source)
-                valid = camera_idx >= 0
+                field_valid = camera_idx >= 0
             except ValueError:
-                valid = False
-        elif source_type == 1:  # Файл
-            valid = os.path.exists(source)
+                field_valid = False
+        elif source_type == 1:  # Для файла
+            field_valid = bool(source) and source != "0"
         else:  # RTSP
-            valid = source.startswith('rtsp://')
+            field_valid = bool(source)
         
-        self.ui.control_panel.start_btn.setEnabled(
-            valid and self.model_handler.is_model_activated()
-        )
+        model_activated = bool(self.model_handler.is_model_activated())
+        self.ui.control_panel.start_btn.setEnabled(field_valid and model_activated)
