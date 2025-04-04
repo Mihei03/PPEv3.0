@@ -36,13 +36,69 @@ PPEv3.0/
 │   ├── images/
 │   ├── models/
 ├── logs
-├── src/                  # Исходный код проекта
-│   ├── detection/        # Модули для обнаружения объектов
-│   ├── ui/              # Графический интерфейс
-│   ├── yolo/           # Модели для машинного обучения
-│   ├── config.py
-│   ├── main.py
-│   └── utils/            # Вспомогательные инструменты
+├── src/
+│   ├── core/
+│   │     ├── controllers/
+│   │     │    ├── main_controller.py       # Главный контроллер
+│   │     │    ├── detection_controller.py  # Контроллер детекции (управление детекторами)
+│   │     │    ├── processing_manager.py    # Управление процессом обработки
+│   │     │    ├── theme_manager.py         # Управление темой
+│   │     │    └── ui_state_manager.py      # Управление состоянием UI (перенесен сюда)
+│   │     │
+│   │     ├── detection/                   # Модули детекции
+│   │     │    ├── yolo_detector.py
+│   │     │    ├── face_detection.py
+│   │     │    ├── pose_detection.py
+│   │     │    └── siz_detection.py
+│   │     │
+│   │     ├──models/                      # Работа с моделями
+│   │     │    ├── model_manager.py
+│   │     │    └── rtsp_manager.py
+│   │     │
+│   │     ├──processing/                  # Обработка видео
+│   │     │    ├── frame_processor.py
+│   │     │    ├── input_handler.py
+│   │     │    └── video_processor.py
+│   │     │
+│   │     └── utils/                       # Вспомогательные утилиты
+│   │          ├── drawing_utils.py
+│   │          ├── input_validator.py
+│   │          ├── logger.py
+│   │          └── rtsp_validator.py
+│   │  
+│   ├── models/
+│   │     ├── model_controls.py # Управляющие кнопки для работы с моделями
+│   │     ├── model_edit_dialog.py # Диалоговое окно для добавления или редактирования модели
+│   │     ├── model_handler.py # Обработчик операций с моделями
+│   │     ├── model_manager.py # Основной диалог управления моделями
+│   │     └── model_table.py # Таблица для отображения списка моделей
+│   │
+│   ├── rtsp/
+│   │     ├── rtsp_controls.py # Управляющие кнопки
+│   │     ├── rtsp_edit_dialog.py # Диалоговое окно для добавления или редактирования RTSP-потоков
+│   │     ├── rtsp_manager.py # Основной диалог управления RTSP-потоками
+│   │     ├── rtsp_storage.py # Хранилище RTSP-потоков в JSON-файле
+│   │     └── rtsp_table.py # Таблица для отображения списка RTSP-потоков
+│   │
+│   ├── ui/
+│   │     ├── components/                  # Визуальные компоненты
+│   │     │    ├── control_panel.py
+│   │     │    ├── model_panel.py
+│   │     │    ├── status_bar.py
+│   │     │    └──  video_display.py
+│   │     │
+│   │     ├──builders/                    # Построение интерфейса
+│   │     │    ├──detection_drawer.py      # Отрисовка детекций
+│   │     │    └── ui_builder.py            # Сборка UI
+│   │     │
+│   │     ├──styles/
+│   │     │    └──styles.css
+│   │     │
+│   │     └── ui_window.py                 # Главное окно приложения
+│   │
+│   ├── config.py # Конфигурация
+│   └── main.py   # Точка входа
+│
 ├── data/                 # Данные для обучения и тестирования
 ├── README.md             # Документация проекта
 └── requirements.txt      # Зависимости проекта
