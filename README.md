@@ -33,38 +33,39 @@
 ```
 PPEv3.0/
 ├── data
+│   ├── config/
 │   ├── images/
 │   ├── models/
 ├── logs
 ├── src/
 │   ├── core/
 │   │     ├── controllers/
-│   │     │    ├── main_controller.py       # Главный контроллер
-│   │     │    ├── detection_controller.py  # Контроллер детекции (управление детекторами)
+│   │     │    ├── main_controller.py       # Главный контроллер приложения, координирует работу всех модулей
+│   │     │    ├── detection_controller.py  # Контроллер для инициализации детекторов (YOLO, Face, Pose, SIZ)
 │   │     │    ├── processing_manager.py    # Управление процессом обработки
 │   │     │    ├── theme_manager.py         # Управление темой
-│   │     │    └── ui_state_manager.py      # Управление состоянием UI (перенесен сюда)
+│   │     │    └── ui_state_manager.py      # Управление состоянием UI (включение/отключение элементов)
 │   │     │
 │   │     ├── detection/                   # Модули детекции
-│   │     │    ├── yolo_detector.py
-│   │     │    ├── face_detection.py
-│   │     │    ├── pose_detection.py
-│   │     │    └── siz_detection.py
+│   │     │    ├── yolo_detector.py # Детектирование объектов с помощью YOLO
+│   │     │    ├── face_detection.py # Детектирование ключевых точек лица с помощью MediaPipe
+│   │     │    ├── pose_detection.py # Детектирование ключевых точек тела (позы) с помощью MediaPipe
+│   │     │    └── siz_detection.py # Проверка наличия и корректности средств индивидуальной защиты (СИЗ)
 │   │     │
 │   │     ├──models/                      # Работа с моделями
-│   │     │    ├── model_manager.py
-│   │     │    └── rtsp_manager.py
+│   │     │    ├── model_manager.py #Управление моделями (активация, загрузка списка, диалог управления)
+│   │     │    └── rtsp_manager.py #Управление RTSP-потоками (загрузка, отображение, диалог редактирования)
 │   │     │
 │   │     ├──processing/                  # Обработка видео
-│   │     │    ├── frame_processor.py
-│   │     │    ├── input_handler.py
-│   │     │    └── video_processor.py
+│   │     │    ├── frame_processor.py # Обработка кадров с использованием детекторов (YOLO, Face, Pose, SIZ)
+│   │     │    ├── input_handler.py # Работа с видео-источниками (камера, файл, RTSP)
+│   │     │    └── video_processor.py # Управление процессом обработки видео в реальном времени
 │   │     │
 │   │     └── utils/                       # Вспомогательные утилиты
-│   │          ├── drawing_utils.py
-│   │          ├── input_validator.py
-│   │          ├── logger.py
-│   │          └── rtsp_validator.py
+│   │          ├── drawing_utils.py # Отрисовка ключевых точек (лицо, поза) на кадрах
+│   │          ├── input_validator.py # Валидация входных данных (камера, файл, RTSP)
+│   │          ├── logger.py # Логирование событий приложения 
+│   │          └── rtsp_validator.py # Проверка валидности RTSP-ссылок
 │   │  
 │   ├── models/
 │   │     ├── model_controls.py # Управляющие кнопки для работы с моделями
@@ -85,7 +86,7 @@ PPEv3.0/
 │   │     │    ├── control_panel.py
 │   │     │    ├── model_panel.py
 │   │     │    ├── status_bar.py
-│   │     │    └──  video_display.py
+│   │     │    └── video_display.py
 │   │     │
 │   │     ├──builders/                    # Построение интерфейса
 │   │     │    ├──detection_drawer.py      # Отрисовка детекций

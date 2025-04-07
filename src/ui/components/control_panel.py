@@ -44,7 +44,7 @@ class ControlPanel:
             QSizePolicy.Policy.Expanding, 
             QSizePolicy.Policy.Fixed
         )
-        self.add_rtsp_btn = QPushButton("+")
+        self.add_rtsp_btn = QPushButton("Управление RTSP")
         
         source_layout.addWidget(self.source_label)
         source_layout.addWidget(self.source_type)

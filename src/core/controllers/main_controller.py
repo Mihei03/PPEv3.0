@@ -71,7 +71,6 @@ class MainController(QObject):
         self.video_processor = VideoProcessor()
         self.video_processor.set_detectors(
             self.yolo_detector,
-            self.detection_controller.face,
             self.detection_controller.pose,
             self.detection_controller.siz
         )

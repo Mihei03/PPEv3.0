@@ -14,10 +14,9 @@ class FrameProcessor:
         self.last_face_results = None
         self.last_pose_results = None
 
-    def set_detectors(self, yolo, face, pose, siz):
+    def set_detectors(self, yolo, pose, siz):
         self.detectors = {
             'yolo': yolo,
-            'face': face,
             'pose': pose,
             'siz': siz
         }
@@ -44,16 +43,8 @@ class FrameProcessor:
         
         try:
             # Инициализация результатов
-            face_results = None
             pose_results = None
             
-            # Детекция лиц (явно проверяем на None)
-            if self.detectors.get('face') is not None:
-                face_results = self.detectors['face'].detect(frame)
-                if face_results is not None and hasattr(face_results, 'multi_face_landmarks'):
-                    face_results = face_results if face_results.multi_face_landmarks else None
-            
-            # Детекция позы (явно проверяем на None)
             if self.detectors.get('pose') is not None:
                 pose_results = self.detectors['pose'].detect(frame)
                 if pose_results is not None and hasattr(pose_results, 'pose_landmarks'):
@@ -64,12 +55,11 @@ class FrameProcessor:
             if model_type and self.detectors.get('yolo') is not None:
                 _, boxes = self.detectors['yolo'].detect(frame, model_type)
 
-            # Безопасная проверка boxes (используем явное преобразование)
+            # Безопасная проверка boxes
             boxes_valid = boxes is not None and hasattr(boxes, 'xyxy') and len(boxes.xyxy) > 0
             
             if boxes_valid:
-                status = self._check_compliance(boxes, pose_results, face_results, frame.shape, model_type)
-                # Явно преобразуем status в список, если это массив
+                status = self._check_compliance(boxes, pose_results, frame.shape, model_type)
                 if hasattr(status, 'any'):  # Проверяем, является ли status numpy array
                     status = status.tolist()
                 frame = self.drawer.draw_detections(frame, boxes, status, model_type)
@@ -77,8 +67,8 @@ class FrameProcessor:
                 status = "nothing"
 
             # Отрисовка лэндмарков
-            if self.show_landmarks:
-                frame = self.drawer.draw_landmarks(frame, pose_results, face_results)
+            if self.show_landmarks and pose_results is not None:
+                frame = self.drawer.draw_landmarks(frame, pose_results)
 
         except Exception as e:
             self.logger.error(f"Frame processing error: {str(e)}", exc_info=True)
@@ -105,16 +95,15 @@ class FrameProcessor:
             self.logger.error(f"Landmark drawing error: {str(e)}")
             return frame
 
-    def _check_compliance(self, boxes, pose_results, face_results, frame_shape, model_type):
+    def _check_compliance(self, boxes, pose_results, frame_shape, model_type):
         if 'siz' not in self.detectors or self.detectors['siz'] is None:
             return [False] * len(boxes.xyxy)
             
         try:
             class_names = self.detectors['yolo'].class_names.get(model_type, [])
             result = self.detectors['siz'].check_items(
-                boxes, pose_results, face_results, frame_shape, class_names
+                boxes, pose_results, frame_shape, class_names
             )
-            # Явное преобразование numpy array в список
             if hasattr(result, 'tolist'):
                 return result.tolist()
             elif isinstance(result, (list, tuple)):

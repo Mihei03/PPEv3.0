@@ -8,7 +8,6 @@ class DetectionDrawer:
     def __init__(self):
         self.logger = AppLogger.get_logger()
         self.detectors = {}
-        # Инициализация стилей MediaPipe
         self.drawing_spec = mp.solutions.drawing_utils.DrawingSpec(
             color=(0, 255, 0), thickness=1, circle_radius=1
         )
@@ -23,7 +22,6 @@ class DetectionDrawer:
             
         class_names = self.detectors['yolo'].class_names.get(model_type, [])
         
-        # Явное преобразование статусов
         if statuses == "nothing":
             statuses = []
         elif isinstance(statuses, (bool, int, float)):
@@ -54,18 +52,13 @@ class DetectionDrawer:
                 
         return frame
 
-    def draw_landmarks(self, frame, pose_results, face_results):
-        """Используем оригинальную функцию из drawing_utils.py"""
+    def draw_landmarks(self, frame, pose_results):
         try:
-            if pose_results is None and face_results is None:
+            if pose_results is None:
                 return frame
                 
-            # Создаем копию изображения для рисования
             image_to_draw = frame.copy()
-            
-            # Используем оригинальную функцию
-            draw_landmarks(image_to_draw, pose_results, face_results)
-            
+            draw_landmarks(image_to_draw, pose_results)
             return image_to_draw
         except Exception as e:
             self.logger.error(f"Landmark drawing error: {str(e)}")

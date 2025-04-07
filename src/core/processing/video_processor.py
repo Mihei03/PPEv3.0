@@ -41,8 +41,8 @@ class VideoProcessor(QObject):
         self.active_model_type = None
         self._alive = True
 
-    def set_detectors(self, yolo, face, pose, siz):
-        self.frame_processor.set_detectors(yolo, face, pose, siz)
+    def set_detectors(self, yolo, pose, siz):
+        self.frame_processor.set_detectors(yolo, pose, siz)
 
     def set_video_source(self, source, selected_source_type):
         self.stop_processing()

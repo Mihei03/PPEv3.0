@@ -10,10 +10,7 @@ class SIZDetector:
         """Конфигурационные параметры для проверок"""
         self.params = {
             'glasses': {
-                'eye_points': {
-                    'left': [33, 7, 163, 144],
-                    'right': [263, 249, 390, 373]
-                },
+                'head_points': [0, 1, 2, 5, 7, 8],  # Точки головы из позы
                 'min_coverage': 0.7
             },
             'glove': {
@@ -40,7 +37,7 @@ class SIZDetector:
             }
         }
 
-    def check_items(self, boxes, pose_results, face_results, frame_shape, class_names):
+    def check_items(self, boxes, pose_results, frame_shape, class_names):
         """Проверка объектов с полной защитой от ошибок"""
         try:
             # Проверка входных данных
@@ -60,7 +57,7 @@ class SIZDetector:
                     status = False
                     
                     if 'glass' in class_name.lower():
-                        status = bool(self._check_glasses(box, face_results, w, h))  # Явное преобразование
+                        status = bool(self._check_glasses(box, pose_results, w, h))
                     elif 'glove' in class_name.lower():
                         status = bool(self._check_glove(box, pose_results, w, h))
                     elif 'helmet' in class_name.lower():
@@ -82,22 +79,19 @@ class SIZDetector:
             self.logger.error(f"Check items error: {str(e)}")
             return []
 
-    # Остальные методы класса остаются без изменений
-    def _check_glasses(self, box, face_results, img_w, img_h):
-        """Проверка положения очков"""
-        if not face_results or not hasattr(face_results, 'multi_face_landmarks'):
+    def _check_glasses(self, box, pose_results, img_w, img_h):
+        """Проверка положения очков по точкам головы"""
+        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
             return False
             
         x1, y1, x2, y2 = map(int, box.cpu().numpy())
         rect = (x1, y1, x2, y2)
         
-        for face in face_results.multi_face_landmarks:
-            left_eye = self._check_eye_coverage(face, self.params['glasses']['eye_points']['left'], rect, img_w, img_h)
-            right_eye = self._check_eye_coverage(face, self.params['glasses']['eye_points']['right'], rect, img_w, img_h)
-            
-            if left_eye and right_eye:
-                return True
-        return False
+        covered = sum(
+            1 for i in self.params['glasses']['head_points']
+            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], rect, img_w, img_h)
+        )
+        return (covered / len(self.params['glasses']['head_points'])) >= self.params['glasses']['min_coverage']
 
     def _check_glove(self, box, pose_results, img_w, img_h):
         """Проверка перчаток"""
@@ -170,14 +164,6 @@ class SIZDetector:
             if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], vest_rect, img_w, img_h)
         )
         return covered >= self.params['vest']['min_points']
-
-    def _check_eye_coverage(self, face_landmarks, eye_points, rect, img_w, img_h):
-        """Проверка покрытия глаза"""
-        covered = sum(
-            1 for i in eye_points
-            if self._is_landmark_covered(face_landmarks.landmark[i], rect, img_w, img_h)
-        )
-        return (covered / len(eye_points)) >= self.params['glasses']['min_coverage']
 
     def _check_coverage(self, pose_results, points, rect, img_w, img_h):
         """Проверка покрытия для набора точек"""

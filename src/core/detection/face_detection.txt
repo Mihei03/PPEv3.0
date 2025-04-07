@@ -1,3 +1,4 @@
+Старый код для детекции частей СИЗов на лице
 import cv2
 import mediapipe as mp
 
