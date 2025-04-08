@@ -114,27 +114,28 @@ class SIZDetector:
             return False
 
     def _check_helmet(self, box, pose_results, img_w, img_h):
-        """Улучшенная проверка каски с учетом смещения ключевых точек вниз"""
+        """Проверка каски с учетом точного положения относительно головы"""
         params = self.params['helmet']
         
         if not pose_results or not hasattr(pose_results, 'keypoints'):
             return False
 
         try:
-            # Получаем координаты bounding box шлема
+            # Координаты bounding box шлема
             x1, y1, x2, y2 = map(int, box)
             helmet_width = x2 - x1
             helmet_height = y2 - y1
+            helmet_center = ((x1 + x2) / 2, (y1 + y2) / 2)
             
-            # Расширяем bounding box шлема (используем существующий параметр expand_down_ratio)
+            # Расширяем bounding box для проверки точек головы
             expanded_box = (
-                max(0, x1 - int(helmet_width * 0.1)),  # Небольшое расширение по бокам
-                max(0, y1 - int(helmet_height * 0.1)),  # Небольшое расширение вверх
-                min(img_w, x2 + int(helmet_width * 0.1)),  # Небольшое расширение по бокам
-                min(img_h, y2 + int(helmet_height * params['expand_down_ratio']))  # Большое расширение вниз
+                max(0, x1 - int(helmet_width * 0.3)),  # Расширение по бокам
+                max(0, y1 - int(helmet_height * 0.5)),  # Расширение вверх
+                min(img_w, x2 + int(helmet_width * 0.3)),  # Расширение по бокам
+                min(img_h, y2 + int(helmet_height * 1.5))  # Расширение вниз
             )
             
-            # Получаем ключевые точки головы
+            # Находим соответствующего человека
             kpts = pose_results.keypoints.xy.cpu().numpy()
             person_idx = self._find_best_person_match(box, pose_results)
             
@@ -144,6 +145,7 @@ class SIZDetector:
             kpts = kpts[person_idx]
             head_points = []
             
+            # Собираем видимые точки головы
             for i in params['head_points']:
                 if i < len(kpts) and kpts[i][0] > 0 and kpts[i][1] > 0:
                     head_points.append(kpts[i])
@@ -151,18 +153,24 @@ class SIZDetector:
             if not head_points:
                 return False
                 
-            # 1. Проверяем, сколько точек попадает в расширенный bounding box
+            # 1. Проверяем покрытие точек головы расширенным bounding box
             points_inside = sum(
                 1 for pt in head_points
                 if (expanded_box[0] <= pt[0] <= expanded_box[2] and
                     expanded_box[1] <= pt[1] <= expanded_box[3]))
             
-            # 2. Проверяем положение шлема относительно головы (измененная логика)
-            avg_head_y = sum(pt[1] for pt in head_points) / len(head_points)
-            helmet_center_y = (y1 + y2) / 2
+            # 2. Проверяем положение шлема относительно головы
+            avg_head = np.mean(head_points, axis=0)
+            head_top = min(pt[1] for pt in head_points)  # Самая верхняя точка головы
             
-            # Шлем должен быть выше средней точки головы (измененное условие)
-            position_ok = helmet_center_y < avg_head_y
+            # Максимальное допустимое расстояние между низом шлема и верхом головы
+            max_allowed_distance = helmet_height * 0.1
+            
+            # Проверяем:
+            # 1. Низ шлема должен быть не слишком далеко от верха головы
+            # 2. Центр шлема должен быть выше средней точки головы
+            distance_ok = (y2 - head_top) <= max_allowed_distance
+            position_ok = helmet_center[1] < avg_head[1]
             
             # 3. Проверяем соотношение размеров
             head_width = max(pt[0] for pt in head_points) - min(pt[0] for pt in head_points)
@@ -171,11 +179,13 @@ class SIZDetector:
             
             # Комбинированная проверка
             condition1 = points_inside >= params['min_covered_points']
-            condition2 = position_ok
+            condition2 = distance_ok and position_ok
             
             self.logger.debug(
                 f"Helmet check - points inside: {points_inside}, "
-                f"head position: {avg_head_y:.1f} vs helmet center: {helmet_center_y:.1f}, "
+                f"head top: {head_top:.1f}, helmet bottom: {y2:.1f}, "
+                f"distance: {y2 - head_top:.1f} (max {max_allowed_distance:.1f}), "
+                f"position: {'OK' if position_ok else 'FAIL'}, "
                 f"size ratio: {size_ratio:.2f}, "
                 f"condition1: {condition1}, condition2: {condition2}"
             )
