@@ -7,243 +7,337 @@ class SIZDetector:
         self._setup_thresholds()
         
     def _setup_thresholds(self):
-        """Конфигурационные параметры для проверок"""
+        """Обновленные параметры для проверок с учетом точных соотношений"""
         self.params = {
             'glasses': {
-                'head_points': [0, 1, 2, 5, 7, 8],  # Точки головы из позы
-                'min_coverage': 0.7
+                'head_points': [0, 1, 2],  # Нос (0), левый глаз (1), правый глаз (2)
+                'min_coverage': 0.5,  
+                'size_ratio': (0.2, 2.0)  # Более широкий диапазон
             },
             'glove': {
-                'hand_points': {
-                    'left': [15, 17, 19, 21],  # Точки левой кисти MediaPipe Pose
-                    'right': [16, 18, 20, 22]   # Точки правой кисти
-                },
-                'min_coverage': 0.6  # 60% точек должны быть покрыты
+                'hand_points': {'left': 9, 'right': 10},  # Запястья (9 - левое, 10 - правое) - COCO
+                'min_distance': 0.2,
+                'min_confidence': 0.3,
+                'expand_ratio': 0.3  # Коэффициент расширения bounding box
             },
             'helmet': {
-                'head_points': [0, 1, 2, 3, 4, 5, 7, 8],  # Оптимизированный набор точек
-                'min_coverage': 0.25,
-                'min_covered_points': 2,
-                'expand_ratio': {
-                    'side': 0.1,
-                    'top': 0.5,
-                    'bottom': 0.4
-                }
+                'head_points': [0, 1, 2, 3, 4],  # Нос, глаза, уши
+                'min_coverage': 0.3,
+                'size_ratio': (0.7, 3.0),  # Более широкий диапазон размеров
+                'expand_down_ratio': 3,  # Сильное расширение вниз
+                'min_covered_points': 1  # Хотя бы одна точка должна быть внутри
             },
             'pants': {
-                'leg_points': {
-                    'left': [25, 27, 29, 31],  # Левая нога
-                    'right': [26, 28, 30, 32]   # Правая нога
-                },
-                'min_coverage': 0.5  # 50% покрытия
+                'leg_points': [13, 14, 15, 16],  # Колени (13-14), лодыжки (15-16) - COCO
+                'min_coverage': 0.4,
+                'height_ratio': 0.3
             },
             'vest': {
-                'body_points': [11, 12, 23, 24],  # Плечи и таз
-                'min_points': 3  # Должен покрывать 3 из 4 точек
+                'body_points': [5, 6, 11, 12],  # Плечи (5-6), бедра (11-12) - COCO
+                'min_points': 3,
+                'min_coverage': 0.4
             }
         }
 
     def check_items(self, boxes, pose_results, frame_shape, class_names):
-        """Проверка объектов с полной защитой от ошибок"""
         try:
-            # Проверка входных данных
-            if boxes is None or not hasattr(boxes, 'xyxy') or len(boxes.xyxy) == 0:
-                return []
-                
-            if not isinstance(class_names, (list, dict)):
-                class_names = []
-                
-            h, w = frame_shape[:2]
-            statuses = []
+            if boxes is None or len(boxes.xyxy) == 0:
+                self.logger.debug("No boxes detected")
+                return [False]
             
-            for i, (box, cls_id) in enumerate(zip(boxes.xyxy, boxes.cls)):
+            statuses = []
+            boxes_np = boxes.xyxy.cpu().numpy()
+            cls_ids = boxes.cls.cpu().numpy()
+            
+            for i, (box, cls_id) in enumerate(zip(boxes_np, cls_ids)):
                 try:
-                    class_id = int(cls_id.cpu().numpy())
-                    class_name = str(class_names[class_id]) if (class_names and class_id < len(class_names)) else str(class_id)
+                    class_name = class_names[int(cls_id)] if class_names else str(cls_id)
                     status = False
                     
-                    if 'glass' in class_name.lower():
-                        status = bool(self._check_glasses(box, pose_results, w, h))
-                    elif 'glove' in class_name.lower():
-                        status = bool(self._check_glove(box, pose_results, w, h))
-                    elif 'helmet' in class_name.lower():
-                        status = bool(self._check_helmet(box, pose_results, w, h))
-                    elif 'pants' in class_name.lower():
-                        status = bool(self._check_pants(box, pose_results, w, h))
-                    elif 'vest' in class_name.lower():
-                        status = bool(self._check_vest(box, pose_results, w, h))
-                        
-                    statuses.append(status)
+                    if pose_results and hasattr(pose_results, 'keypoints'):
+                        person_idx = self._find_best_person_match(box, pose_results)
+                        if person_idx is not None:
+                            kpts = pose_results.keypoints.xy[person_idx].cpu().numpy()
+                            if 'glass' in class_name.lower():
+                                status = self._check_glasses(box, kpts)
+                            elif 'glove' in class_name.lower():
+                                status = self._check_glove(box, kpts, frame_shape[1], frame_shape[0])
+                            elif 'helmet' in class_name.lower():
+                                status = self._check_helmet(box, pose_results, frame_shape[1], frame_shape[0])
+                            elif 'pants' in class_name.lower():
+                                status = self._check_pants(box, kpts)
+                            elif 'vest' in class_name.lower():
+                                status = self._check_vest(box, kpts)
                     
+                    statuses.append(status)
                 except Exception as e:
                     self.logger.warning(f"Error processing box {i}: {str(e)}")
                     statuses.append(False)
                     
-            return statuses  # Гарантированно возвращаем список bool
-            
+            return statuses
         except Exception as e:
             self.logger.error(f"Check items error: {str(e)}")
-            return []
+            return [False] * len(boxes.xyxy) if boxes else [False]
 
-    def _check_glasses(self, box, pose_results, img_w, img_h):
-        """Проверка положения очков по точкам головы"""
-        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
-            return False
+    def _check_glove(self, box, kpts, img_w, img_h):
+        """Проверка перчаток с увеличенной областью распознавания"""
+        params = self.params['glove']
+        
+        try:
+            x1, y1, x2, y2 = map(int, box)
+            width = x2 - x1
+            height = y2 - y1
             
-        x1, y1, x2, y2 = map(int, box.cpu().numpy())
-        rect = (x1, y1, x2, y2)
-        
-        covered = sum(
-            1 for i in self.params['glasses']['head_points']
-            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], rect, img_w, img_h)
-        )
-        return (covered / len(self.params['glasses']['head_points'])) >= self.params['glasses']['min_coverage']
+            # Расширяем bounding box перчатки
+            expanded_box = (
+                max(0, x1 - int(width * params['expand_ratio'])),
+                max(0, y1 - int(height * params['expand_ratio'])),
+                min(img_w, x2 + int(width * params['expand_ratio'])),
+                min(img_h, y2 + int(height * params['expand_ratio']))
+            )
 
-    def _check_glove(self, box, pose_results, img_w, img_h):
-        """Проверка перчаток"""
-        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
+            # Проверяем обе руки
+            left_hand_idx = params['hand_points']['left']
+            right_hand_idx = params['hand_points']['right']
+            
+            left_covered = (left_hand_idx < len(kpts) and 
+                           kpts[left_hand_idx][0] > 0 and 
+                           self._is_point_covered(kpts[left_hand_idx], expanded_box))
+            
+            right_covered = (right_hand_idx < len(kpts) and 
+                            kpts[right_hand_idx][0] > 0 and 
+                            self._is_point_covered(kpts[right_hand_idx], expanded_box))
+            
+            return left_covered or right_covered
+        except Exception as e:
+            self.logger.error(f"Glove check error: {str(e)}")
             return False
-
-        x1, y1, x2, y2 = map(int, box.cpu().numpy())
-        glove_rect = (x1, y1, x2, y2)
-        
-        # Проверяем обе руки
-        left_covered = self._check_coverage(
-            pose_results, 
-            self.params['glove']['hand_points']['left'], 
-            glove_rect, img_w, img_h
-        )
-        right_covered = self._check_coverage(
-            pose_results,
-            self.params['glove']['hand_points']['right'],
-            glove_rect, img_w, img_h
-        )
-        
-        return left_covered or right_covered
 
     def _check_helmet(self, box, pose_results, img_w, img_h):
-        """Проверка каски с использованием параметров из конфигурации"""
-        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
-            return False
-
-        # Получаем параметры из конфигурации
+        """Улучшенная проверка каски с учетом смещения ключевых точек вниз"""
         params = self.params['helmet']
-        expand_ratio = params.get('expand_ratio', {'side': 0.15, 'top': 0.15, 'bottom': 0.15})  # Значения по умолчанию
+        
+        if not pose_results or not hasattr(pose_results, 'keypoints'):
+            return False
 
-        # Расширяем bounding box каски в соответствии с параметрами
-        x1, y1, x2, y2 = map(int, box.cpu().numpy())
-        width = x2 - x1
-        height = y2 - y1
-        expanded_box = (
-            max(0, x1 - int(width * expand_ratio['side'])),
-            max(0, y1 - int(height * expand_ratio['top'])),
-            min(img_w, x2 + int(width * expand_ratio['side'])),
-            min(img_h, y2 + int(height * expand_ratio['bottom']))
-        )
-
-        landmarks = pose_results.pose_landmarks.landmark
-
-        # Проверка по точкам головы из конфигурации
-        head_points = params.get('head_points', [0, 1, 2, 3, 4, 5, 7, 8])
-        available_points = [i for i in head_points if i < len(landmarks)]
-
-        if available_points:
-            covered = sum(
-                1 for i in available_points
-                if self._is_landmark_covered(landmarks[i], expanded_box, img_w, img_h)
-            )
-            coverage_ratio = covered / len(available_points)
-            min_coverage = params.get('min_coverage', 0.25)
-            min_covered_points = params.get('min_covered_points', 2)
-
-            if coverage_ratio >= min_coverage and covered >= min_covered_points:
-                return True
-
-        # Дополнительная проверка по расчетным точкам головы (если основная проверка не прошла)
         try:
-            # Нос (точка 0)
-            nose = landmarks[0]
-            # Левое ухо (точка 7)
-            left_ear = landmarks[7] if 7 < len(landmarks) else None
-            # Правое ухо (точка 8)
-            right_ear = landmarks[8] if 8 < len(landmarks) else None
-
-            if nose and left_ear and right_ear:
-                # Рассчитываем центр головы
-                head_center_x = (left_ear.x + right_ear.x) / 2
-                head_center_y = (left_ear.y + right_ear.y) / 2
-
-                # Оцениваем размер головы
-                head_width = abs(left_ear.x - right_ear.x) * img_w
-                head_height = abs(nose.y - head_center_y) * img_h * 1.8  # Эмпирический коэффициент
-
-                # Рассчитываем область лба (верхняя часть головы)
-                forehead_top_x = head_center_x * img_w
-                forehead_top_y = (nose.y - head_height * 0.3) * img_h
-
-                # Проверяем, попадает ли эта точка в расширенный bounding box каски
-                if (expanded_box[0] <= forehead_top_x <= expanded_box[2] and
-                    expanded_box[1] <= forehead_top_y <= expanded_box[3]):
-                    return True
-
-                # Дополнительно проверяем точки по бокам головы
-                for ear_point in [left_ear, right_ear]:
-                    ear_x = ear_point.x * img_w
-                    ear_y = ear_point.y * img_h
-                    if (expanded_box[0] <= ear_x <= expanded_box[2] and
-                        expanded_box[1] <= ear_y <= expanded_box[3]):
-                        return True
+            # Получаем координаты bounding box шлема
+            x1, y1, x2, y2 = map(int, box)
+            helmet_width = x2 - x1
+            helmet_height = y2 - y1
+            
+            # Расширяем bounding box шлема (используем существующий параметр expand_down_ratio)
+            expanded_box = (
+                max(0, x1 - int(helmet_width * 0.1)),  # Небольшое расширение по бокам
+                max(0, y1 - int(helmet_height * 0.1)),  # Небольшое расширение вверх
+                min(img_w, x2 + int(helmet_width * 0.1)),  # Небольшое расширение по бокам
+                min(img_h, y2 + int(helmet_height * params['expand_down_ratio']))  # Большое расширение вниз
+            )
+            
+            # Получаем ключевые точки головы
+            kpts = pose_results.keypoints.xy.cpu().numpy()
+            person_idx = self._find_best_person_match(box, pose_results)
+            
+            if person_idx is None:
+                return False
+                
+            kpts = kpts[person_idx]
+            head_points = []
+            
+            for i in params['head_points']:
+                if i < len(kpts) and kpts[i][0] > 0 and kpts[i][1] > 0:
+                    head_points.append(kpts[i])
+            
+            if not head_points:
+                return False
+                
+            # 1. Проверяем, сколько точек попадает в расширенный bounding box
+            points_inside = sum(
+                1 for pt in head_points
+                if (expanded_box[0] <= pt[0] <= expanded_box[2] and
+                    expanded_box[1] <= pt[1] <= expanded_box[3]))
+            
+            # 2. Проверяем положение шлема относительно головы (измененная логика)
+            avg_head_y = sum(pt[1] for pt in head_points) / len(head_points)
+            helmet_center_y = (y1 + y2) / 2
+            
+            # Шлем должен быть выше средней точки головы (измененное условие)
+            position_ok = helmet_center_y < avg_head_y
+            
+            # 3. Проверяем соотношение размеров
+            head_width = max(pt[0] for pt in head_points) - min(pt[0] for pt in head_points)
+            size_ratio = helmet_width / (head_width + 1e-6)
+            size_ok = params['size_ratio'][0] <= size_ratio <= params['size_ratio'][1]
+            
+            # Комбинированная проверка
+            condition1 = points_inside >= params['min_covered_points']
+            condition2 = position_ok
+            
+            self.logger.debug(
+                f"Helmet check - points inside: {points_inside}, "
+                f"head position: {avg_head_y:.1f} vs helmet center: {helmet_center_y:.1f}, "
+                f"size ratio: {size_ratio:.2f}, "
+                f"condition1: {condition1}, condition2: {condition2}"
+            )
+            
+            return condition1 and condition2 and size_ok
+            
         except Exception as e:
-            self.logger.warning(f"Ошибка расчета точек головы: {str(e)}")
-
-        return False
-
-    def _check_pants(self, box, pose_results, img_w, img_h):
-        """Проверка защитных штанов"""
-        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
+            self.logger.error(f"Helmet check error: {str(e)}")
             return False
 
-        x1, y1, x2, y2 = map(int, box.cpu().numpy())
-        pants_rect = (x1, y1, x2, y2)
+    # Остальные методы остаются без изменений
+    def _check_pants(self, box, kpts):
+        """Проверка штанов с покрытием ног"""
+        params = self.params['pants']
         
-        # Проверяем обе ноги
-        left_covered = self._check_coverage(
-            pose_results,
-            self.params['pants']['leg_points']['left'],
-            pants_rect, img_w, img_h
-        )
-        right_covered = self._check_coverage(
-            pose_results,
-            self.params['pants']['leg_points']['right'],
-            pants_rect, img_w, img_h
-        )
-        
-        return left_covered or right_covered
+        try:
+            leg_points = []
+            for i in params['leg_points']:
+                if i < len(kpts) and kpts[i][0] > 0:
+                    leg_points.append(kpts[i])
+            
+            if len(leg_points) < 2:
+                self.logger.debug("Not enough visible leg points for pants check")
+                return False
+            
+            covered = sum(self._is_point_covered(pt, box) for pt in leg_points)
+            coverage = covered / len(leg_points)
+            
+            person_height = self._estimate_person_size(kpts)
+            box_height = box[3] - box[1]
+            height_ratio = box_height / (person_height + 1e-6)
+            
+            self.logger.debug(f"Pants check - coverage: {coverage:.2f}, height_ratio: {height_ratio:.2f}")
+            
+            return coverage >= params['min_coverage'] and height_ratio >= params['height_ratio']
+        except Exception as e:
+            self.logger.error(f"Pants check error: {str(e)}")
+            return False
     
-    def _check_vest(self, box, pose_results, img_w, img_h):
-        """Проверка жилета"""
-        if not pose_results or not hasattr(pose_results, 'pose_landmarks'):
+    def _check_vest(self, box, kpts):
+        """Проверка жилета с покрытием плеч и груди"""
+        params = self.params['vest']
+        
+        try:
+            body_points = []
+            for i in params['body_points']:
+                if i < len(kpts) and kpts[i][0] > 0:
+                    body_points.append(kpts[i])
+            
+            if len(body_points) < params['min_points']:
+                self.logger.debug("Not enough visible body points for vest check")
+                return False
+            
+            covered = sum(self._is_point_covered(pt, box) for pt in body_points)
+            coverage = covered / len(body_points)
+            
+            self.logger.debug(f"Vest check - coverage: {coverage:.2f}")
+            
+            return coverage >= params['min_coverage']
+        except Exception as e:
+            self.logger.error(f"Vest check error: {str(e)}")
+            return False
+    
+    def _check_glasses(self, box, kpts):
+        """Проверка очков с учетом размера и положения"""
+        params = self.params['glasses']
+        
+        try:
+            head_points = []
+            for i in params['head_points']:
+                if i < len(kpts) and kpts[i][0] > 0 and kpts[i][1] > 0:
+                    head_points.append(kpts[i])
+            
+            if len(head_points) < 2:
+                self.logger.debug("Not enough visible head points for glasses check")
+                return False
+                
+            head_points = np.array(head_points)
+            
+            covered = sum(self._is_point_covered(pt, box) for pt in head_points)
+            coverage = covered / len(head_points)
+            
+            head_width = np.max(head_points[:,0]) - np.min(head_points[:,0])
+            box_width = box[2] - box[0]
+            size_ratio = box_width / (head_width + 1e-6)
+            
+            size_ok = params['size_ratio'][0] <= size_ratio <= params['size_ratio'][1]
+            
+            result = (coverage >= params['min_coverage']) or size_ok
+            
+            self.logger.debug(f"Glasses check - coverage: {coverage:.2f}, size_ratio: {size_ratio:.2f}, result: {result}")
+            return result
+        except Exception as e:
+            self.logger.error(f"Glasses check error: {str(e)}")
             return False
 
-        x1, y1, x2, y2 = map(int, box.cpu().numpy())
-        vest_rect = (x1, y1, x2, y2)
+    # Остальные вспомогательные методы без изменений
+    def _find_best_person_match(self, box, pose_results):
+        """Находит наиболее подходящего человека с учетом нескольких факторов"""
+        best_match = None
+        best_score = -1
         
-        covered = sum(
-            1 for i in self.params['vest']['body_points']
-            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], vest_rect, img_w, img_h)
-        )
-        return covered >= self.params['vest']['min_points']
+        for i, kpts in enumerate(pose_results.keypoints.xy.cpu().numpy()):
+            visible_points = sum(1 for kpt in kpts if kpt[0] > 0 and kpt[1] > 0)
+            if visible_points < 5:
+                continue
+                
+            body_center = self._get_body_center(kpts)
+            box_center = ((box[0] + box[2])/2, (box[1] + box[3])/2)
+            
+            distance = np.sqrt((body_center[0]-box_center[0])**2 + (body_center[1]-box_center[1])**2)
+            
+            person_size = self._estimate_person_size(kpts)
+            norm_distance = distance / (person_size + 1e-6)
+            
+            score = 1.0 / (1.0 + norm_distance)
+            
+            if score > best_score:
+                best_score = score
+                best_match = i
+                
+        return best_match
 
-    def _check_coverage(self, pose_results, points, rect, img_w, img_h):
-        """Проверка покрытия для набора точек"""
-        covered = sum(
-            1 for i in points
-            if self._is_landmark_covered(pose_results.pose_landmarks.landmark[i], rect, img_w, img_h)
-        )
-        return (covered / len(points)) >= 0.5  # Базовый порог покрытия
-    
-    def _is_landmark_covered(self, landmark, rect, img_w, img_h):
-        """Проверка покрытия конкретной точки"""
+    def _get_body_center(self, kpts):
+        """Вычисляет центр тела по видимым ключевым точкам"""
+        visible = [kpt for kpt in kpts if kpt[0] > 0 and kpt[1] > 0]
+        if not visible:
+            return (0, 0)
+        return np.mean(visible, axis=0)
+
+    def _estimate_person_size(self, kpts):
+        """Оценивает размер человека по ключевым точкам"""
+        visible = [kpt for kpt in kpts if kpt[0] > 0 and kpt[1] > 0]
+        if len(visible) < 2:
+            return 0
+        return np.max([np.linalg.norm(a-b) for a in visible for b in visible])
+
+    def _is_point_covered(self, point, box):
+        """Проверяет, покрыта ли точка bounding box"""
+        return (box[0] <= point[0] <= box[2] and 
+                box[1] <= point[1] <= box[3])
+
+    def _is_landmark_covered(self, landmark, box, img_w, img_h):
+        """Проверяет, покрыт ли landmark bounding box"""
         x = landmark.x * img_w
         y = landmark.y * img_h
-        return rect[0] <= x <= rect[2] and rect[1] <= y <= rect[3]
+        return (box[0] <= x <= box[2] and 
+                box[1] <= y <= box[3])
+
+    def _box_intersection(self, box1, box2):
+        """Вычисляет площадь пересечения двух bounding box"""
+        dx = min(box1[2], box2[2]) - max(box1[0], box2[0])
+        dy = min(box1[3], box2[3]) - max(box1[1], box2[1])
+        return dx * dy if dx > 0 and dy > 0 else 0
+
+    def _expand_box(self, box, ratio):
+        """Расширяет bounding box на заданный процент"""
+        w = box[2] - box[0]
+        h = box[3] - box[1]
+        return [
+            box[0] - w * ratio,
+            box[1] - h * ratio,
+            box[2] + w * ratio,
+            box[3] + h * ratio
+        ]

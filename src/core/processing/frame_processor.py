@@ -97,6 +97,7 @@ class FrameProcessor:
 
     def _check_compliance(self, boxes, pose_results, frame_shape, model_type):
         if 'siz' not in self.detectors or self.detectors['siz'] is None:
+            self.logger.warning("SIZ detector not initialized")
             return [False] * len(boxes.xyxy)
             
         try:
@@ -104,6 +105,7 @@ class FrameProcessor:
             result = self.detectors['siz'].check_items(
                 boxes, pose_results, frame_shape, class_names
             )
+            self.logger.debug(f"Compliance check result: {result}")
             if hasattr(result, 'tolist'):
                 return result.tolist()
             elif isinstance(result, (list, tuple)):

@@ -18,29 +18,30 @@ class DetectionDrawer:
 
     def draw_detections(self, frame, boxes, statuses, model_type):
         if boxes is None or not hasattr(boxes, 'xyxy'):
+            self.logger.warning("No boxes to draw")
             return frame
             
         class_names = self.detectors['yolo'].class_names.get(model_type, [])
         
-        if statuses == "nothing":
-            statuses = []
+        if isinstance(statuses, str):  # "nothing"
+            statuses = [False] * len(boxes.xyxy)
         elif isinstance(statuses, (bool, int, float)):
             statuses = [bool(statuses)] * len(boxes.xyxy)
-        elif hasattr(statuses, '__iter__'):
-            statuses = [bool(s) if not isinstance(s, str) else False for s in statuses]
-        else:
+        elif not hasattr(statuses, '__iter__'):
             statuses = [False] * len(boxes.xyxy)
+        
+        self.logger.debug(f"Drawing {len(boxes.xyxy)} boxes with statuses: {statuses}")
         
         for i, box in enumerate(boxes.xyxy):
             try:
                 x1, y1, x2, y2 = map(int, box.cpu().numpy())
-                status = statuses[i] if i < len(statuses) else False
+                status = bool(statuses[i]) if i < len(statuses) else False
                 
                 cls_id = int(boxes.cls[i].cpu().numpy()) if i < len(boxes.cls) else 0
                 conf = float(boxes.conf[i].cpu().numpy()) if i < len(boxes.conf) else 0.0
                 class_name = str(class_names[cls_id]) if (class_names and cls_id < len(class_names)) else f"Class {cls_id}"
                 
-                color = (0, 255, 0) if status else (0, 0, 255)
+                color = (0, 255, 0) if status else (0, 0, 255)  # Зеленый если True, красный если False
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 
                 label = f"{class_name} {conf:.2f}"
@@ -54,12 +55,11 @@ class DetectionDrawer:
 
     def draw_landmarks(self, frame, pose_results):
         try:
-            if pose_results is None:
+            if pose_results is None or not hasattr(pose_results, 'keypoints'):
                 return frame
                 
             image_to_draw = frame.copy()
-            draw_landmarks(image_to_draw, pose_results)
-            return image_to_draw
+            return draw_landmarks(image_to_draw, pose_results)
         except Exception as e:
             self.logger.error(f"Landmark drawing error: {str(e)}")
             return frame
