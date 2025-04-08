@@ -205,18 +205,68 @@ class ProcessingManager(QObject):
         self.main.ui.control_panel.source_input.style().polish(self.main.ui.control_panel.source_input)
         self.main.ui.control_panel.source_input.update()
 
-    def update_siz_status(self, status):
+    def update_siz_status(self, status_data):
         try:
-            if status == "nothing":
-                message = "СИЗ: ничего не обнаружено!"
-            elif isinstance(status, list):
-                message = "СИЗ: все на местах" if all(status) else "СИЗ: Не всё на своих местах!"
+            if isinstance(status_data, tuple) and len(status_data) == 3:
+                statuses, people_count, detected_siz = status_data
             else:
-                message = "СИЗ: все на местах" if status else "СИЗ: проблемы обнаружены!"
+                statuses = status_data
+                people_count = 0
+                detected_siz = {}
+
+            # Получаем список ожидаемых СИЗ из текущей модели
+            model_siz = []
+            if hasattr(self.main, 'model_handler') and hasattr(self.main.model_handler, 'current_model_info'):
+                model_info = self.main.model_handler.current_model_info
+                if model_info and 'class_names' in model_info:
+                    model_siz = [name for name in model_info['class_names'] 
+                                if any(siz_type in name.lower() 
+                                    for siz_type in ['glasses', 'glove', 'helmet', 'pants', 'vest'])]
+
+            # Всегда показываем список ожидаемых СИЗ, даже если ничего не обнаружено
+            if not detected_siz:
+                message = f"СИЗ: ничего не обнаружено ({', '.join(model_siz)})" if model_siz else "СИЗ: ничего не обнаружено"
+            else:
+                # Проверяем, все ли необходимые СИЗ надеты в нужном количестве
+                required_per_person = 2 if 'glove' in str(detected_siz.keys()).lower() else 1
+                all_detected = all(
+                    count >= (people_count * required_per_person if 'glove' in siz_type.lower() else people_count)
+                    for siz_type, count in detected_siz.items()
+                    if people_count > 0
+                )
+                
+                if all_detected and people_count > 0:
+                    message = "СИЗ: все на местах"
+                else:
+                    # Формируем список недостающих СИЗ
+                    missing_parts = []
+                    for siz_type, count in detected_siz.items():
+                        required = (people_count * 2) if 'glove' in siz_type.lower() else people_count
+                        if count < required:
+                            missing_count = required - count
+                            missing_parts.append(f"{missing_count}× {siz_type}")
+                    
+                    # Проверяем, есть ли СИЗ, которые вообще не были обнаружены
+                    not_detected = [siz for siz in model_siz 
+                                if siz.lower() not in [d.lower() for d in detected_siz.keys()]]
+                    
+                    if missing_parts or not_detected:
+                        if missing_parts and not_detected:
+                            message = f"СИЗ: не хватает ({', '.join(missing_parts)}), не обнаружены: {', '.join(not_detected)}"
+                        elif missing_parts:
+                            message = f"СИЗ: не хватает ({', '.join(missing_parts)})"
+                        else:
+                            message = f"СИЗ: не обнаружены следующие элементы: {', '.join(not_detected)}"
+                    else:
+                        # Если есть обнаруженные СИЗ, но они не на нужных местах
+                        if any(not s for s in statuses) if isinstance(statuses, list) else not statuses:
+                            message = f"СИЗ: обнаружены, но не надеты правильно ({', '.join(detected_siz.keys())})"
+                        else:
+                            message = f"СИЗ: не весь комплект надет ({', '.join(detected_siz.keys())})"
             
             base_msg = f"Модель: {self.main.model_manager.current_model} | " if self.main.model_manager.current_model else ""
             self.main.ui.show_message(base_msg + message)
-            self.current_siz_status = all(status) if isinstance(status, list) else status
+            self.current_siz_status = all(statuses) if isinstance(statuses, list) else statuses
             
         except Exception as e:
             self.main.logger.error(f"Status update error: {str(e)}")

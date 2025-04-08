@@ -41,7 +41,8 @@ class DetectionDrawer:
                 conf = float(boxes.conf[i].cpu().numpy()) if i < len(boxes.conf) else 0.0
                 class_name = str(class_names[cls_id]) if (class_names and cls_id < len(class_names)) else f"Class {cls_id}"
                 
-                color = (0, 255, 0) if status else (0, 0, 255)  # Зеленый если True, красный если False
+                # Цвет зависит от статуса (True - зеленый, False - красный)
+                color = (0, 255, 0) if status else (0, 0, 255)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 
                 label = f"{class_name} {conf:.2f}"

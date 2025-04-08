@@ -43,12 +43,26 @@ class SIZDetector:
         try:
             if boxes is None or len(boxes.xyxy) == 0:
                 self.logger.debug("No boxes detected")
-                return [False]
-            
+                return [], 0, {}
+
+            # Подсчет людей в кадре
+            people_count = 0
+            if pose_results and hasattr(pose_results, 'keypoints'):
+                people_count = len(pose_results.keypoints.xy)
+
             statuses = []
+            required_siz = {}  # Словарь для отслеживания необходимых СИЗ
+            detected_siz = {}  # Словарь для отслеживания обнаруженных СИЗ
+
             boxes_np = boxes.xyxy.cpu().numpy()
             cls_ids = boxes.cls.cpu().numpy()
             
+            # Инициализация словарей для каждого типа СИЗ
+            for class_name in class_names:
+                if any(siz_type in class_name.lower() for siz_type in ['glasses', 'glove', 'helmet', 'pants', 'vest']):
+                    required_siz[class_name] = people_count
+                    detected_siz[class_name] = 0
+
             for i, (box, cls_id) in enumerate(zip(boxes_np, cls_ids)):
                 try:
                     class_name = class_names[int(cls_id)] if class_names else str(cls_id)
@@ -68,16 +82,20 @@ class SIZDetector:
                                 status = self._check_pants(box, kpts)
                             elif 'vest' in class_name.lower():
                                 status = self._check_vest(box, kpts)
+                            
+                            # Увеличиваем счетчик обнаруженных СИЗ
+                            if class_name in detected_siz:
+                                detected_siz[class_name] += 1
                     
                     statuses.append(status)
                 except Exception as e:
                     self.logger.warning(f"Error processing box {i}: {str(e)}")
                     statuses.append(False)
                     
-            return statuses
+            return statuses, people_count, detected_siz
         except Exception as e:
             self.logger.error(f"Check items error: {str(e)}")
-            return [False] * len(boxes.xyxy) if boxes else [False]
+            return [], 0, {}
 
     def _check_glove(self, box, kpts, img_w, img_h):
         """Проверка перчаток с увеличенной областью распознавания"""

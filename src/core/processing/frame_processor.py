@@ -62,7 +62,14 @@ class FrameProcessor:
                 status = self._check_compliance(boxes, pose_results, frame.shape, model_type)
                 if hasattr(status, 'any'):  # Проверяем, является ли status numpy array
                     status = status.tolist()
-                frame = self.drawer.draw_detections(frame, boxes, status, model_type)
+                
+                # Проверяем, что статус содержит кортеж (statuses, people_count, detected_siz)
+                if isinstance(status, tuple) and len(status) == 3:
+                    statuses = status[0]
+                else:
+                    statuses = status
+                    
+                frame = self.drawer.draw_detections(frame, boxes, statuses, model_type)
             else:
                 status = "nothing"
 
@@ -98,22 +105,23 @@ class FrameProcessor:
     def _check_compliance(self, boxes, pose_results, frame_shape, model_type):
         if 'siz' not in self.detectors or self.detectors['siz'] is None:
             self.logger.warning("SIZ detector not initialized")
-            return [False] * len(boxes.xyxy)
+            return [], 0, {}
             
         try:
             class_names = self.detectors['yolo'].class_names.get(model_type, [])
-            result = self.detectors['siz'].check_items(
+            statuses, people_count, detected_siz = self.detectors['siz'].check_items(
                 boxes, pose_results, frame_shape, class_names
             )
-            self.logger.debug(f"Compliance check result: {result}")
-            if hasattr(result, 'tolist'):
-                return result.tolist()
-            elif isinstance(result, (list, tuple)):
-                return list(result)
-            return result
+            self.logger.debug(f"Compliance check result: {statuses}, people: {people_count}, detected: {detected_siz}")
+            
+            if hasattr(statuses, 'tolist'):
+                return statuses.tolist(), people_count, detected_siz
+            elif isinstance(statuses, (list, tuple)):
+                return list(statuses), people_count, detected_siz
+            return statuses, people_count, detected_siz
         except Exception as e:
             self.logger.error(f"Compliance check error: {str(e)}")
-            return [False] * len(boxes.xyxy)
+            return [], 0, {}
 
     def convert_to_qimage(self, frame):
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
