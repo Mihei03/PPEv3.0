@@ -25,7 +25,7 @@ class ModelHandler(QObject):
         return self._model_activated and bool(self._current_model)
     
     def refresh_models_list(self):
-        if not os.path.exists(Config.MODELS_ROOT):
+        if not os.path.exists(Config.MODELS_DIR):
             os.makedirs(Config.MODELS_ROOT, exist_ok=True)
             return []
             

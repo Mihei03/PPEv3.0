@@ -44,16 +44,15 @@ def check_models():
     """Проверка доступности моделей с подробным логгированием"""
     logger = AppLogger.get_logger()
     try:
-        from src.config import Config
+        from config import Config
         models = Config.get_available_models()
         
         if not models:
-            logger.warning(f"Не найдены модели в папке: {Config.MODELS_ROOT}")
+            logger.info(f"Папка с моделями создана: {Config.MODELS_DIR}. Добавьте модели в эту папку.")
             return False
             
         logger.info(f"Найдены модели: {list(models.keys())}")
         
-        # Проверка файлов для каждой модели
         for name, info in models.items():
             if not os.path.exists(info['pt_file']):
                 logger.error(f"Файл модели не найден: {info['pt_file']}")
