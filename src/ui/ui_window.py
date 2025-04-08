@@ -13,7 +13,7 @@ class MainWindowUI(QMainWindow):
         self.control_panel = self.ui_builder.control_panel
         self.status_bar = self.ui_builder.status_bar
         self.video_display = self.ui_builder.video_display
-    
+        
     def show_message(self, message, timeout=0):
         """Делегируем вызов статус бару"""
         self.status_bar.show_message(message, timeout)

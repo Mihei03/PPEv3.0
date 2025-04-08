@@ -38,6 +38,7 @@ class UIBuilder:
         )
         self.main_window.model_panel = self.model_panel
         self.main_window.control_panel = self.control_panel
+        
         # Собираем основной layout
         from PyQt6.QtWidgets import QVBoxLayout, QWidget
         central_widget = QWidget()
@@ -45,11 +46,13 @@ class UIBuilder:
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(15, 15, 15, 15)
         
-        main_layout.addWidget(self.video_display.scroll_area, stretch=1)
+        # Изменено: используем widget вместо scroll_area
+        main_layout.addWidget(self.video_display.widget, stretch=1)
         main_layout.addWidget(self.model_panel.panel)
         main_layout.addWidget(self.control_panel.panel)
         
         self.main_window.setCentralWidget(central_widget)
         self.main_window.setStatusBar(self.status_bar.bar)
+        
         # Инициализация
         self.control_panel._update_source_type(0)

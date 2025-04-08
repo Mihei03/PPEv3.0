@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QScrollArea, QWidget, QLabel, QVBoxLayout, QHBoxLayout, 
-                            QSizePolicy)
+                            QSizePolicy, QFrame)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 
@@ -9,6 +9,21 @@ class VideoDisplay:
         self._setup_display()
         
     def _setup_display(self):
+        # Основной контейнер, который будет возвращаться
+        self.main_widget = QWidget()
+        self.main_layout = QVBoxLayout(self.main_widget)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(5)
+        
+        # Надпись "Вывод видеопотока"
+        self.title_label = QLabel()
+        self.title_label.setObjectName("videoTitle")
+        self.title_label.setText("Вывод видеопотока: ")
+        self.title_label.setStyleSheet("font-size: 20px; font-weight: 700;")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.main_layout.addWidget(self.title_label)
+        
+        # Область с видео
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -45,6 +60,7 @@ class VideoDisplay:
         self.video_layout.addStretch(1)
         
         self.scroll_area.setWidget(self.video_container)
+        self.main_layout.addWidget(self.scroll_area)
     
     def update_frame(self, q_image):
         if not q_image.isNull():
@@ -67,3 +83,8 @@ class VideoDisplay:
             self.video_label.setPixmap(scaled_pixmap)
             self.video_label.setFixedSize(scaled_pixmap.size())
             self.video_container.setMinimumSize(container_size)
+    
+    @property
+    def widget(self):
+        """Возвращает основной виджет для встраивания в интерфейс"""
+        return self.main_widget
