@@ -1,5 +1,9 @@
 mediapipe
 opencv-python
 PyQt6
+roboflow 
 ultralytics
+matplotlib
 pyyaml
+torch 
+torchvision 
