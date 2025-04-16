@@ -20,7 +20,7 @@ class RtspStorage:
                 json.dump({}, f)
             self.logger.info(f"Создан новый файл хранилища: {self.storage_file}")
 
-    def add_rtsp(self, name: str, url: str, comment: str = "") -> bool:
+    def add_rtsp(self, name: str, url: str, comment: str = "", model: str = None) -> bool:
         """Добавляет RTSP-поток в хранилище"""
         try:
             # Валидация через общий RtspValidator
@@ -42,7 +42,11 @@ class RtspStorage:
                 self.logger.error(f"RTSP с именем '{name}' уже существует")
                 return False
 
-            data[name] = {"url": url, "comment": comment}
+            data[name] = {
+                "url": url, 
+                "comment": comment,
+                "model": model
+            }
 
             with open(self.storage_file, 'w') as f:
                 json.dump(data, f, indent=4)
@@ -56,7 +60,9 @@ class RtspStorage:
         """Возвращает все RTSP-потоки из хранилища"""
         try:
             with open(self.storage_file, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Убираем добавление 'model_name', так как теперь работаем напрямую с 'model'
+                return data
         except Exception as e:
             self.logger.error(f"Ошибка чтения RTSP: {e}")
             return {}

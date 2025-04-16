@@ -9,8 +9,8 @@ class RtspTable(QTableWidget):
         self._last_sorted_column = 0
         
     def setup_table(self):
-        self.setColumnCount(4)
-        self.setHorizontalHeaderLabels(["№", "Имя", "Ссылка", "Комментарий"])
+        self.setColumnCount(5)
+        self.setHorizontalHeaderLabels(["№", "Имя", "Ссылка", "Комментарий", "Модель"])
         
         # Настройка заголовков
         header = self.horizontalHeader()
@@ -25,6 +25,7 @@ class RtspTable(QTableWidget):
         self.setColumnWidth(1, 150)  # Имя
         self.setColumnWidth(2, 300)  # Ссылка
         self.setColumnWidth(3, 200)  # Комментарий
+        self.setColumnWidth(4, 200)  # Модель
         
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -59,9 +60,16 @@ class RtspTable(QTableWidget):
             name_item = QTableWidgetItem(name)
             url_item = QTableWidgetItem(info.get("url", ""))
             comment_item = QTableWidgetItem(info.get("comment", ""))
+            # Пустая строка, если модель не выбрана
+            model_item = QTableWidgetItem(info.get("model", ""))
+            
+            model_comment = info.get("model_comment", "")
+            
+            if model_comment:
+                model_item.setToolTip(model_comment)
             
             # Настройка отображения текста
-            for item in [num_item, name_item, url_item, comment_item]:
+            for item in [num_item, name_item, url_item, comment_item, model_item]:
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             
@@ -69,6 +77,7 @@ class RtspTable(QTableWidget):
             self.setItem(row, 1, name_item)
             self.setItem(row, 2, url_item)
             self.setItem(row, 3, comment_item)
+            self.setItem(row, 4, model_item)
             
             self.resizeRowToContents(row)
         
@@ -84,5 +93,6 @@ class RtspTable(QTableWidget):
         return {
             'name': self.item(row, 1).text(),  # Колонка с именем
             'url': self.item(row, 2).text(),    # Колонка с URL
-            'comment': self.item(row, 3).text() # Колонка с комментарием
+            'comment': self.item(row, 3).text(), # Колонка с комментарием
+            'model': self.item(row, 4).text()    # Колонка с моделью
         }

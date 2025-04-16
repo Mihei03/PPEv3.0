@@ -8,15 +8,16 @@ class RtspManagerDialog(QDialog):
     list_updated = pyqtSignal()
     data_changed = pyqtSignal()
     
-    def __init__(self, rtsp_storage, parent=None):
+    def __init__(self, rtsp_storage, model_handler=None, parent=None):
         super().__init__(parent)
         self.rtsp_storage = rtsp_storage
+        self.model_handler = model_handler 
         self.setup_ui()
         
     def setup_ui(self):
         self.setWindowTitle("Управление RTSP потоками")
         self.setModal(True)
-        self.setMinimumSize(600, 400)
+        self.setMinimumSize(1000, 600)
         
         layout = QVBoxLayout()
         

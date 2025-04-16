@@ -16,6 +16,8 @@ class ProcessingManager(QObject):
 
     def on_start_processing(self):
         try:
+            source_type = self.main.ui.control_panel.source_type.currentIndex()
+            source = self.main.ui.control_panel.source_input.text().strip()
             # Проверяем активацию модели
             if not self.main.model_handler.is_model_activated():
                 self._show_error_message(
@@ -63,6 +65,13 @@ class ProcessingManager(QObject):
                     return
                 source = rtsp_data["url"]
 
+                if not rtsp_data.get("model"):
+                    self._show_error_message(
+                        "Модель не назначена",
+                        "Для выбранного RTSP потока не назначена модель"
+                    )
+                    return
+            
             # Инициализация источника
             success, error_msg = self.main.input_handler.setup_source(source, source_type)
             if not success:

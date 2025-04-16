@@ -6,7 +6,8 @@ class RtspManager(QObject):
     def __init__(self, main_controller):
         super().__init__()
         self.main = main_controller
-        
+        self.rtsp_storage = RtspStorage()
+
     def load_rtsp_list(self):
         """Теперь этот метод должен вызываться явно после полной инициализации UI"""
         try:
@@ -49,6 +50,12 @@ class RtspManager(QObject):
             self.main.logger.error(f"Ошибка открытия диалога RTSP: {str(e)}")
             self.main.ui.status_bar.show_message("Ошибка открытия диалога RTSP", 3000)
             self.main.ui.show_warning("Ошибка", "Не удалось открыть диалог управления RTSP")
+
+    def check_rtsp_model(self, rtsp_name):
+        rtsp_data = self.get_current_rtsp()
+        if rtsp_data and 'model' in rtsp_data and rtsp_data['model']:
+            return True
+        return False
 
     def get_current_rtsp(self):
         current_name = self.main.ui.ui_builder.control_panel.rtsp_combo.currentText()

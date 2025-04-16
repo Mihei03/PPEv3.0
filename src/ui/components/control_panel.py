@@ -83,9 +83,23 @@ class ControlPanel:
     def _setup_validation(self):
         self.source_input.textChanged.connect(self._validate_current_input)
         self.source_type.currentIndexChanged.connect(self._update_validation)
-        self.start_btn.clicked.connect(self._handle_start_btn_click)  # Добавляем этот обработчик
+        self.start_btn.clicked.connect(self._handle_start_btn_click)
+        self.rtsp_combo.currentTextChanged.connect(self._validate_rtsp_selection)  # Новый обработчик
         self._update_validation()
-    
+
+    def _validate_rtsp_selection(self):
+        if self.source_type.currentIndex() == 2:  # Если выбран RTSP
+            rtsp_name = self.rtsp_combo.currentText()
+            if rtsp_name and rtsp_name != "Нет сохраненных RTSP":
+                if hasattr(self.main_window, 'rtsp_manager'):
+                    rtsp_data = self.main_window.rtsp_manager.get_current_rtsp()
+                    if rtsp_data and 'model' in rtsp_data and rtsp_data['model']:
+                        self.start_btn.setEnabled(True)
+                        self._set_input_validity(True)
+                        return
+            self.start_btn.setEnabled(False)
+            self._set_input_validity(False)
+
     def _handle_start_btn_click(self):
         """Обработчик клика на кнопку запуска, когда она заблокирована"""
         if not self.start_btn.isEnabled():
@@ -184,6 +198,10 @@ class ControlPanel:
         self.rtsp_combo.setVisible(is_rtsp)
         self.add_rtsp_btn.setVisible(is_rtsp)
         self.source_input.setVisible(not is_rtsp)
+        
+        # Новый код: скрываем элементы модели для RTSP
+        if hasattr(self.main_window, 'model_panel'):
+            self.main_window.model_panel.panel.setVisible(not is_rtsp)
         
         # Очищаем поле при переключении на файл или RTSP
         if index != 0:  # Если не камера
