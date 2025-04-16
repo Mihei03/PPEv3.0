@@ -31,6 +31,10 @@ class ModelHandler(QObject):
             
         return sorted(Config.get_available_models().keys())
     
+    def get_available_models(self):
+        """Возвращает словарь доступных моделей"""
+        return {name: info for name, info in self.models.items() if os.path.exists(info['path'])}
+
     def rename_model(self, old_name, new_name):
         """Переименовывает модель"""
         try:

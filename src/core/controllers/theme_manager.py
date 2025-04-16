@@ -9,12 +9,16 @@ class ThemeManager(QObject):
         self.load_theme_settings()
 
     def toggle_theme(self):
+        """Переключает тему между светлой и темной"""
         self._dark_mode = not self._dark_mode
         self.main.settings.setValue("dark_mode", self._dark_mode)
         self.update_theme_button()
         self.apply_theme(self._dark_mode)
-        self.main.theme_changed.emit(self._dark_mode)
 
+    def is_dark_theme(self):
+        """Возвращает текущее состояние темы (True для темной)"""
+        return self._dark_mode
+    
     def apply_theme(self, dark_mode):
         try:
             if dark_mode:

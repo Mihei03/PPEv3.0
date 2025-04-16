@@ -117,13 +117,9 @@ class RtspEditDialog(QDialog):
             
         # Обязательная проверка выбора модели
         if not self.model_combo.currentData():
-            QMessageBox.warning(
-                self,
-                "Ошибка",
-                "Необходимо выбрать модель для RTSP потока"
-            )
+            QMessageBox.warning(self, "Ошибка", "Необходимо выбрать модель для RTSP потока")
             return
-            
+        
         self.accept()
 
     def get_data(self):

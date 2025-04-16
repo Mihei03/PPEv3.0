@@ -60,9 +60,7 @@ class RtspStorage:
         """Возвращает все RTSP-потоки из хранилища"""
         try:
             with open(self.storage_file, 'r') as f:
-                data = json.load(f)
-                # Убираем добавление 'model_name', так как теперь работаем напрямую с 'model'
-                return data
+                return json.load(f)
         except Exception as e:
             self.logger.error(f"Ошибка чтения RTSP: {e}")
             return {}

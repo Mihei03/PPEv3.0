@@ -61,6 +61,7 @@ class MainController(QObject):
         self.rtsp_manager.load_rtsp_list()
         self.theme_manager.load_theme_settings()
         self.ui.destroyed.connect(self.cleanup)
+        self.rtsp_manager.load_rtsp_list()
 
     def _init_components(self):
         self.yolo_detector = YOLODetector()
@@ -92,6 +93,9 @@ class MainController(QObject):
         self.ui.control_panel.source_input.textChanged.connect(
             self._validate_source_input
         )
+        self.ui.control_panel.rtsp_combo.currentTextChanged.connect(
+            self._handle_rtsp_selection
+        )
         self.ui.ui_builder.control_panel.landmarks_check.stateChanged.connect(
             lambda state: self.video_processor.toggle_landmarks(state == Qt.CheckState.Checked.value)
         )
@@ -100,6 +104,9 @@ class MainController(QObject):
         )
         self.ui.model_panel.manage_models_btn.clicked.connect(
             self.model_manager.show_models_dialog
+        )
+        self.ui.control_panel.source_type.currentIndexChanged.connect(
+            self._handle_source_type_change
         )
         self.ui.ui_builder.control_panel.source_type.currentIndexChanged.connect(
             self.processing_manager.update_source_type
@@ -120,19 +127,41 @@ class MainController(QObject):
         # Подключение сигнала изменения темы
         self.theme_changed.connect(self.theme_manager.apply_theme)
 
+    def _handle_source_type_change(self, index):
+        """Обрабатывает изменение типа источника видео"""
+        if index == 2:  # RTSP
+            # Загружаем актуальный список RTSP
+            self.rtsp_manager.load_rtsp_list()
+            # Проверяем текущий выбор
+            self.rtsp_manager.validate_rtsp_selection()
+        else:
+            # Для других источников используем стандартную валидацию
+            self.ui.control_panel._validate_current_input(
+                self.ui.control_panel.source_input.text()
+            )
+
+    def _handle_rtsp_selection(self):
+        """Обработчик изменения выбора RTSP потока"""
+        if self.ui.control_panel.source_type.currentIndex() == 2:  # Если выбран RTSP
+            self.rtsp_manager.validate_rtsp_selection()
+            
     def _toggle_theme(self):
         """Обработчик переключения темы"""
-        is_dark = not self.theme_manager.is_dark_theme()
-        self.theme_manager.set_dark_theme(is_dark)
-        self.theme_changed.emit(is_dark)
+        # Получаем текущее состояние темы
+        current_theme = self.theme_manager.is_dark_theme()
+        # Инвертируем его для переключения
+        self.theme_manager.toggle_theme()
+        # Испускаем сигнал с новым состоянием темы
+        self.theme_changed.emit(not current_theme)
 
     def _show_rtsp_dialog(self):
         """Показывает диалог управления RTSP потоками с передачей model_handler"""
         dialog = RtspManagerDialog(
-            rtsp_storage=self.rtsp_storage,  # Используем rtsp_storage созданный в __init__
+            rtsp_storage=self.rtsp_storage,
             model_handler=self.model_handler,
-            parent=self.ui
+            parent=self.ui  # Передаем главное окно как родителя
         )
+        dialog.data_changed.connect(self.rtsp_manager.load_rtsp_list)
         dialog.exec()
     
     def _handle_model_changed(self):

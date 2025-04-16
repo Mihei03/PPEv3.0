@@ -12,6 +12,7 @@ class RtspManagerDialog(QDialog):
         super().__init__(parent)
         self.rtsp_storage = rtsp_storage
         self.model_handler = model_handler 
+        self.parent_window = parent
         self.setup_ui()
         
     def setup_ui(self):
@@ -39,24 +40,23 @@ class RtspManagerDialog(QDialog):
         self.table.populate(rtsp_list)
     
     def add_rtsp(self):
-        """Открывает диалог добавления нового RTSP"""
         existing_names = set(self.rtsp_storage.get_all_rtsp().keys())
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,
-            is_edit_mode=False
+            is_edit_mode=False,
+            available_models=self.model_handler.get_available_models() if self.model_handler else {}
         )
         
         if dialog.exec() == QDialog.DialogCode.Accepted:
             data = dialog.get_data()
-            if self.rtsp_storage.add_rtsp(data['name'], data['url'], data['comment']):
+            if self.rtsp_storage.add_rtsp(data['name'], data['url'], data['comment'], data['model']):
                 self.load_data()
-                self.list_updated.emit()  # Отправляем сигнал об обновлении
+                self.list_updated.emit()
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось добавить RTSP поток")
     
     def edit_rtsp(self):
-        """Открывает диалог редактирования выбранного RTSP"""
         selected = self.table.get_selected()
         if not selected:
             QMessageBox.warning(self, "Ошибка", "Выберите RTSP поток для редактирования")
@@ -68,18 +68,21 @@ class RtspManagerDialog(QDialog):
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,
-            is_edit_mode=True
+            is_edit_mode=True,
+            available_models=self.model_handler.get_available_models() if self.model_handler else {}
         )
         
         dialog.name_input.setText(selected['name'])
         dialog.url_input.setText(selected['url'])
         dialog.comment_input.setPlainText(selected['comment'])
+        if 'model' in selected:
+            dialog.set_model(selected['model'])
         
         if dialog.exec() == QDialog.DialogCode.Accepted:
             new_data = dialog.get_data()
             if (self.rtsp_storage.remove_rtsp(selected['name']) and 
-                self.rtsp_storage.add_rtsp(new_data['name'], new_data['url'], new_data['comment'])):
+                self.rtsp_storage.add_rtsp(new_data['name'], new_data['url'], new_data['comment'], new_data['model'])):
                 self.load_data()
-                self.list_updated.emit()  # Отправляем сигнал об обновлении
+                self.list_updated.emit()
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось обновить RTSP поток")

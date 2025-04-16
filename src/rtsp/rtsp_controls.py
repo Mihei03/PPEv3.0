@@ -90,6 +90,9 @@ class RtspControls(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             if self.manager.rtsp_storage.remove_rtsp(selected['name']):
                 self.manager.load_data()
-                self.manager.data_changed.emit()  # Отправляем сигнал
+                self.manager.data_changed.emit()
+                # Обновляем список в главном окне через родительское окно
+                if hasattr(self.manager, 'parent_window') and hasattr(self.manager.parent_window, 'rtsp_manager'):
+                    self.manager.parent_window.rtsp_manager.load_rtsp_list()
             else:
                 QMessageBox.warning(self, "Ошибка", "Не удалось удалить RTSP поток")
