@@ -16,6 +16,8 @@ class Config:
     
     # Для обратной совместимости
     MODELS_ROOT = MODELS_DIR
+
+    DB_NAME = "ppe.db"
     
     CAMERA_INDEX = 0
     RTSP_SETTINGS = {

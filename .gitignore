@@ -6,3 +6,4 @@ data/config/
 *.yaml
 
 __pycache__/
+venv/
