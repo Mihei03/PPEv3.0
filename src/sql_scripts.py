@@ -3,7 +3,7 @@ class SQL:
     CREATE TABLE IF NOT EXISTS camera_models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       file_path TEXT NOT NULL UNIQUE,
-      description TEXT
+      comment TEXT
     );
 
     CREATE TABLE IF NOT EXISTS cameras (
