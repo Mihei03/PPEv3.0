@@ -63,16 +63,10 @@ class RtspStorage:
     def remove_rtsp(self, name: str) -> bool:
         """Удаляет RTSP-поток из хранилища"""
         try:
-            with open(self.storage_file, 'r') as f:
-                data = json.load(f)
+            with sqlite3.connect(self.storage_file) as con:
+                c = con.cursor()
+                c.execute("DELETE FROM cameras WHERE name=?", (name,))
 
-            if name not in data:
-                return False
-
-            del data[name]
-
-            with open(self.storage_file, 'w') as f:
-                json.dump(data, f, indent=4)
             return True
 
         except Exception as e:
