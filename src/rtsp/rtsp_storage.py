@@ -23,7 +23,7 @@ class RtspStorage:
             self.logger.info(f"Создан новый файл хранилища: {self.storage_file}")
             
 
-    def add_rtsp(self, name: str, url: str, comment: str = "") -> bool:
+    def add_rtsp(self, name: str, url: str, comment: str = "", model: str = None) -> bool:
         """Добавляет RTSP-поток в хранилище"""
         try:
             # Валидация через общий RtspValidator
@@ -31,7 +31,7 @@ class RtspStorage:
             if not is_valid:
                 self.logger.error(f"Некорректный RTSP URL: {error_msg}")
                 return False
-            
+
             with sqlite3.connect(self.storage_file) as con:
                 c = con.cursor()
                 c.execute("INSERT INTO cameras (name, rtsp_source, comment) VALUES (?,?,?)", (name, url, comment))

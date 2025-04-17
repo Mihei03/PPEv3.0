@@ -1,16 +1,17 @@
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, 
-    QLineEdit, QTextEdit, QDialogButtonBox, QMessageBox
+    QLineEdit, QTextEdit, QDialogButtonBox, QMessageBox, QComboBox
 )
 from PyQt6.QtCore import Qt
 from core.utils.rtsp_validator import RtspValidator
 
 
 class RtspEditDialog(QDialog):
-    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False):
+    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False, available_models=None):
         super().__init__(parent)
         self.existing_names = existing_names or set()
         self.is_edit_mode = is_edit_mode  
+        self.available_models = available_models or {}
         self.setup_ui()
         # Переносим вызов _update_ui_for_mode() в конец setup_ui()
 
@@ -34,6 +35,13 @@ class RtspEditDialog(QDialog):
         self.comment_input = QTextEdit()
         form.addRow("Комментарий:", self.comment_input)
         
+        # Комбобокс для выбора модели (без варианта "Не выбрана")
+        self.model_combo = QComboBox()
+        if self.available_models:  # Добавляем только реальные модели
+            for model_name, model_info in self.available_models.items():
+                self.model_combo.addItem(model_name, model_name)
+        form.addRow("Привязать модель:", self.model_combo)
+        
         # Кнопки OK/Cancel
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
@@ -49,7 +57,6 @@ class RtspEditDialog(QDialog):
         layout.addWidget(self.buttons)
         self.setLayout(layout)
         
-        # Важно: вызываем после создания всех элементов UI
         self._update_ui_for_mode()
 
     def _validate_url(self):
@@ -72,12 +79,14 @@ class RtspEditDialog(QDialog):
             self.name_input.setToolTip("Редактирование существующего названия RTSP потока")
             self.url_input.setToolTip("Редактирование RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path")
             self.comment_input.setToolTip("Редактирование комментария")
+            self.model_combo.setToolTip("Редактирование привязанной модели")
         else:
             self.setWindowTitle("Добавить новый RTSP поток")
             self.ok_button.setText("Добавить поток")
             self.name_input.setToolTip("Введите уникальное название для нового RTSP потока")
             self.url_input.setToolTip("Введите RTSP URL. Формат: rtsp://[user:pass@]host[:port]/path")
             self.comment_input.setToolTip("Добавьте комментарий (необязательно)")
+            self.model_combo.setToolTip("Выберите модель для привязки к потоку")
 
     def _validate_and_accept(self):
         """Проверка с использованием полной валидации RTSP"""
@@ -106,6 +115,11 @@ class RtspEditDialog(QDialog):
             self.name_input.selectAll()
             return
             
+        # Обязательная проверка выбора модели
+        if not self.model_combo.currentData():
+            QMessageBox.warning(self, "Ошибка", "Необходимо выбрать модель для RTSP потока")
+            return
+        
         self.accept()
 
     def get_data(self):
@@ -113,5 +127,12 @@ class RtspEditDialog(QDialog):
         return {
             "name": self.name_input.text().strip(),
             "url": self.url_input.text().strip(),
-            "comment": self.comment_input.toPlainText().strip()
+            "comment": self.comment_input.toPlainText().strip(),
+            "model": self.model_combo.currentData()
         }
+    
+    def set_model(self, model_name):
+        """Устанавливает выбранную модель в комбобоксе"""
+        index = self.model_combo.findData(model_name)
+        if index >= 0:
+            self.model_combo.setCurrentIndex(index)

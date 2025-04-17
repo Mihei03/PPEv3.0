@@ -1,6 +1,7 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QMessageBox,
                             QLabel, QComboBox, QPushButton, 
                             QCheckBox, QLineEdit, QSpacerItem, QSizePolicy)
+from PyQt6.QtCore import QTimer
 import os
 
 class ControlPanel:
@@ -82,49 +83,88 @@ class ControlPanel:
     
     def _setup_validation(self):
         self.source_input.textChanged.connect(self._validate_current_input)
-        self.source_type.currentIndexChanged.connect(self._update_validation)
-        self.start_btn.clicked.connect(self._handle_start_btn_click)  # Добавляем этот обработчик
-        self._update_validation()
+        self.source_type.currentIndexChanged.connect(self._update_source_type)
+        self.start_btn.clicked.connect(self._handle_start_btn_click)
+        self.rtsp_combo.currentTextChanged.connect(self._validate_rtsp_selection)
     
+    def _validate_rtsp_selection(self):
+        if self.source_type.currentIndex() == 2:  # Если выбран RTSP
+            if hasattr(self.main_window, 'rtsp_manager'):
+                self.main_window.rtsp_manager.validate_rtsp_selection()
+
     def _handle_start_btn_click(self):
         """Обработчик клика на кнопку запуска, когда она заблокирована"""
         if not self.start_btn.isEnabled():
-            from PyQt6.QtWidgets import QMessageBox
+            source_type = self.source_type.currentIndex()
+            message = "Для запуска анализа необходимо:\n"
+            
+            if source_type == 2:  # RTSP
+                rtsp_name = self.rtsp_combo.currentText()
+                if not rtsp_name or rtsp_name == "Нет сохраненных RTSP":
+                    message += "1. Выберите RTSP поток из списка\n"
+                else:
+                    message += "1. Для выбранного RTSP потока должна быть назначена модель\n"
+            else:
+                message += "1. Укажите корректный источник видео\n"
+            
+            message += "2. Выберите и активируйте модель"
+            
             QMessageBox.information(
-                self.panel,  # Родительский виджет
+                self.panel,
                 "Нельзя запустить анализ",
-                "Для запуска анализа необходимо:\n"
-                "1. Выбрать модель из списка\n"
-                "2. Указать корректный источник видео\n"
-                "3. Активировать модель",
+                message,
                 QMessageBox.StandardButton.Ok
             )
 
-    def _update_validation(self):
+    def _update_source_type(self, index):
         placeholders = [
             "Введите индекс камеры (0, 1, ...)",
             "Введите путь к видеофайлу или выберите его через 'Обзор'",
-            "Введите RTSP URL (rtsp://...)"
+            "Выберите RTSP поток"
         ]
-        self.source_input.setPlaceholderText(placeholders[self.source_type.currentIndex()])
+        self.source_input.setPlaceholderText(placeholders[index])
+        
+        is_file = index == 1
+        is_rtsp = index == 2
+        
+        self.browse_btn.setVisible(is_file)
+        self.rtsp_combo.setVisible(is_rtsp)
+        self.add_rtsp_btn.setVisible(is_rtsp)
+        self.source_input.setVisible(not is_rtsp)
+        
+        # Очищаем поле при переключении на файл или RTSP
+        if index != 0:
+            self.source_input.clear()
+        else:
+            self.source_input.setText("0")
+        
+        # Для RTSP сразу запускаем проверку
+        if is_rtsp and hasattr(self.main_window, 'rtsp_manager'):
+            QTimer.singleShot(100, self._delayed_rtsp_validation)
+        
+        # Общая валидация для всех типов источников
         self._validate_current_input(self.source_input.text())
-    
+
+    def _delayed_rtsp_validation(self):
+        """Отложенная валидация RTSP для корректного обновления UI"""
+        if hasattr(self.main_window, 'rtsp_manager'):
+            self.main_window.rtsp_manager.validate_rtsp_selection()
+
     def _validate_current_input(self, text):
         source_type = self.source_type.currentIndex()
         text = text.strip()
         
-        # Если переключились на видеофайл и текст остался "0" - считаем невалидным
         if source_type == 1 and text == "0":
             self._set_input_validity(False)
             self.source_input.setToolTip("Введите путь к видеофайлу или выберите его через 'Обзор'")
             return
         
         try:
-            if source_type == 0:  # Камера
+            if source_type == 0:
                 is_valid, tooltip = self._validate_camera(text)
-            elif source_type == 1:  # Видеофайл
+            elif source_type == 1:
                 is_valid, tooltip = self._validate_video(text)
-            elif source_type == 2:  # RTSP
+            elif source_type == 2:
                 is_valid, tooltip = self._validate_rtsp(text)
             else:
                 is_valid, tooltip = False, "Неизвестный тип источника"
@@ -144,7 +184,7 @@ class ControlPanel:
             return False, "Введите числовой индекс камеры (0, 1, ...)"
 
     def _validate_video(self, text):
-        if not text or text.strip() == "0":  # Явная проверка на "0"
+        if not text or text.strip() == "0":
             return False, "Введите путь к видеофайлу или выберите его через 'Обзор'"
         
         valid = text.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
@@ -162,37 +202,7 @@ class ControlPanel:
         return valid, "Валидный RTSP URL" if valid else "URL должен начинаться с rtsp:// и быть длиннее 10 символов"
 
     def _set_input_validity(self, is_valid):
-        """Устанавливает стиль поля ввода на основе валидности"""
-        # is_valid должен быть булевым значением
-        self.source_input.setProperty("valid", "true" if is_valid else "false")  # Здесь строка допустима для QSS
+        self.source_input.setProperty("valid", "true" if is_valid else "false")
         self.source_input.style().unpolish(self.source_input)
         self.source_input.style().polish(self.source_input)
         self.source_input.update()
-    
-    def _update_source_type(self, index):
-        placeholders = [
-            "Введите индекс камеры (0, 1, ...)",
-            "Введите путь к видеофайлу или выберите его через 'Обзор'",
-            "Введите RTSP URL (rtsp://...)"
-        ]
-        self.source_input.setPlaceholderText(placeholders[index])
-        
-        is_file = index == 1
-        is_rtsp = index == 2
-        
-        self.browse_btn.setVisible(is_file)
-        self.rtsp_combo.setVisible(is_rtsp)
-        self.add_rtsp_btn.setVisible(is_rtsp)
-        self.source_input.setVisible(not is_rtsp)
-        
-        # Очищаем поле при переключении на файл или RTSP
-        if index != 0:  # Если не камера
-            self.source_input.clear()
-        else:
-            # Только для камеры устанавливаем значение по умолчанию "0"
-            self.source_input.setText("0")
-        
-        # Принудительно запускаем валидацию
-        self._validate_current_input(self.source_input.text())
-        # Блокируем кнопку запуска при смене типа
-        self.start_btn.setEnabled(False)

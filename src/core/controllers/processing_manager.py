@@ -55,14 +55,21 @@ class ProcessingManager(QObject):
             # Проверка для RTSP
             elif source_type == 2:
                 rtsp_data = self.main.rtsp_manager.get_current_rtsp()
-                if not rtsp_data or not rtsp_data.get("url"):
+                if not rtsp_data or not rtsp_data.get('model'):
                     self._show_error_message(
-                        "RTSP не выбран",
-                        "Пожалуйста, выберите RTSP поток из списка"
+                        "Ошибка",
+                        "Для выбранного RTSP потока не назначена модель"
                     )
                     return
                 source = rtsp_data["url"]
 
+                if not rtsp_data.get("model"):
+                    self._show_error_message(
+                        "Модель не назначена",
+                        "Для выбранного RTSP потока не назначена модель"
+                    )
+                    return
+            
             # Инициализация источника
             success, error_msg = self.main.input_handler.setup_source(source, source_type)
             if not success:
@@ -150,7 +157,6 @@ class ProcessingManager(QObject):
             "Введите путь к видеофайлу или выберите его через 'Обзор'", 
             "Выберите RTSP поток"
         ]
-        # Используем правильный путь до source_input
         self.main.ui.control_panel.source_input.setPlaceholderText(placeholders[index])
         
         is_file = index == 1
@@ -161,16 +167,17 @@ class ProcessingManager(QObject):
         self.main.ui.control_panel.add_rtsp_btn.setVisible(is_rtsp)
         self.main.ui.control_panel.source_input.setVisible(not is_rtsp)
         
+        # Показываем/скрываем панель модели
+        self.main.ui.model_panel.panel.setVisible(not is_rtsp)
+        
         # Очищаем поле при переключении на файл или RTSP
-        if index != 0:  # Если не камера
+        if index != 0:
             self.main.ui.control_panel.source_input.clear()
         else:
-            # Только для камеры устанавливаем значение по умолчанию "0"
             self.main.ui.control_panel.source_input.setText("0")
         
-        # Принудительно запускаем валидацию
         self.main.ui.control_panel._validate_current_input(self.main.ui.control_panel.source_input.text())
-
+        
     def handle_file_browse(self):
         if self.main.ui.control_panel.source_type.currentIndex() != 1:
             return
