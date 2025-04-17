@@ -45,20 +45,21 @@ class ModelTable(QTableWidget):
         
     def populate(self, models):
         self.setRowCount(len(models))
-        for row, (model_name, info) in enumerate(models.items()):
+        
+        for row, (id, path, comment) in enumerate(models):
             # Для сортировки по номеру используем числовое значение
             num_item = QTableWidgetItem()
-            num_item.setData(Qt.ItemDataRole.DisplayRole, row + 1)
+            num_item.setData(Qt.ItemDataRole.DisplayRole, id)
             
-            name_item = QTableWidgetItem(model_name)
-            comment_item = QTableWidgetItem(info.get('comment', ''))
+            path_item = QTableWidgetItem(path)
+            comment_item = QTableWidgetItem(comment)
             
-            for item in [num_item, name_item, comment_item]:
+            for item in [num_item, path_item, comment_item]:
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             
             self.setItem(row, 0, num_item)
-            self.setItem(row, 1, name_item)
+            self.setItem(row, 1, path_item)
             self.setItem(row, 2, comment_item)
             
             self.resizeRowToContents(row)
