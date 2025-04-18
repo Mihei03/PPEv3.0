@@ -40,6 +40,7 @@ class FrameProcessor:
     def process(self, frame, model_type=None):
         frame = frame.copy()
         status = None
+        missing_areas = []
         
         try:
             # Инициализация результатов
@@ -60,18 +61,24 @@ class FrameProcessor:
             
             if boxes_valid:
                 status = self._check_compliance(boxes, pose_results, frame.shape, model_type)
-                if hasattr(status, 'any'):  # Проверяем, является ли status numpy array
-                    status = status.tolist()
-                
-                # Проверяем, что статус содержит кортеж (statuses, people_count, detected_siz)
-                if isinstance(status, tuple) and len(status) == 3:
+                if isinstance(status, tuple) and len(status) >= 3:
                     statuses = status[0]
+                    missing_areas = status[3] if len(status) > 3 else []
                 else:
                     statuses = status
                     
-                frame = self.drawer.draw_detections(frame, boxes, statuses, model_type)
+                frame = self.drawer.draw_detections(frame, boxes, statuses, model_type, missing_areas)
             else:
                 status = "nothing"
+                # Если нет боксов, но есть люди, рисуем отсутствующие СИЗ
+                if pose_results is not None:
+                    class_names = self.detectors['yolo'].class_names.get(model_type, []) if model_type else []
+                    required_siz = {siz_type: len(pose_results.keypoints.xy) 
+                                for siz_type in ['glasses', 'glove', 'helmet', 'vest', 'pants']}
+                    missing_areas = self.detectors['siz'].get_missing_siz_areas(
+                        pose_results, frame.shape, {}, required_siz, class_names
+                    )
+                    frame = self.drawer.draw_missing_siz(frame, missing_areas)
 
             # Отрисовка лэндмарков
             if self.show_landmarks and pose_results is not None:
@@ -112,16 +119,28 @@ class FrameProcessor:
             statuses, people_count, detected_siz = self.detectors['siz'].check_items(
                 boxes, pose_results, frame_shape, class_names
             )
+            
+            # Определяем требуемые СИЗ
+            required_siz = {}
+            for class_name in class_names:
+                if any(siz_type in class_name.lower() for siz_type in ['glasses', 'glove', 'helmet', 'pants', 'vest']):
+                    required_siz[class_name] = people_count
+                    
+            # Получаем области отсутствующих СИЗ с передачей class_names
+            missing_areas = self.detectors['siz'].get_missing_siz_areas(
+                pose_results, frame_shape, detected_siz, required_siz, class_names
+            )
+            
             self.logger.debug(f"Compliance check result: {statuses}, people: {people_count}, detected: {detected_siz}")
             
             if hasattr(statuses, 'tolist'):
-                return statuses.tolist(), people_count, detected_siz
+                return statuses.tolist(), people_count, detected_siz, missing_areas
             elif isinstance(statuses, (list, tuple)):
-                return list(statuses), people_count, detected_siz
-            return statuses, people_count, detected_siz
+                return list(statuses), people_count, detected_siz, missing_areas
+            return statuses, people_count, detected_siz, missing_areas
         except Exception as e:
             self.logger.error(f"Compliance check error: {str(e)}")
-            return [], 0, {}
+            return [], 0, {}, []
 
     def convert_to_qimage(self, frame):
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

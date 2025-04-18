@@ -369,3 +369,153 @@ class SIZDetector:
             box[2] + w * ratio,
             box[3] + h * ratio
         ]
+    
+    def get_missing_siz_areas(self, pose_results, frame_shape, detected_siz, required_siz, class_names):
+        """Возвращает области, где должны быть СИЗ, но их нет"""
+        missing_areas = []
+        
+        if pose_results is None or not hasattr(pose_results, 'keypoints'):
+            return missing_areas
+        
+        try:
+            # Проверяем каждый тип СИЗ
+            for siz_type in ['glasses', 'glove', 'helmet', 'vest', 'pants']:
+                # Проверяем, есть ли этот тип СИЗ в модели
+                if not self._is_siz_in_model(siz_type, class_names):
+                    continue
+                    
+                # Если этот тип СИЗ требуется, но не обнаружен
+                required = required_siz.get(siz_type, 0)
+                detected = detected_siz.get(siz_type, 0)
+                
+                if required > detected:
+                    for person_idx in range(len(pose_results.keypoints.xy)):
+                        kpts = pose_results.keypoints.xy[person_idx].cpu().numpy()
+                        
+                        # Определяем область для каждого типа СИЗ
+                        if siz_type == 'glasses':
+                            # Получаем точки глаз (левый и правый глаз)
+                            left_eye_idx, right_eye_idx = 1, 2
+                            left_eye = kpts[left_eye_idx] if left_eye_idx < len(kpts) and kpts[left_eye_idx][0] > 0 else None
+                            right_eye = kpts[right_eye_idx] if right_eye_idx < len(kpts) and kpts[right_eye_idx][0] > 0 else None
+                            
+                            if left_eye is not None and right_eye is not None:
+                                # Вычисляем центр между глазами
+                                center_x = (left_eye[0] + right_eye[0]) / 2
+                                center_y = (left_eye[1] + right_eye[1]) / 2
+                                
+                                # Ширина очков - расстояние между глазами + 20%
+                                width = abs(left_eye[0] - right_eye[0]) * 1.4
+                                
+                                # Высота очков - пропорционально ширине
+                                height = width * 0.4
+                                
+                                area = (
+                                    int(max(0, center_x - width/2)),
+                                    int(max(0, center_y - height/2)),
+                                    int(min(frame_shape[1], center_x + width/2)),
+                                    int(min(frame_shape[0], center_y + height/2))
+                                )
+                                missing_areas.append((area, siz_type))
+                        
+                        elif siz_type == 'helmet':
+                            # Область над головой
+                            head_points = [kpts[i] for i in [0,1,2,3,4] 
+                                        if i < len(kpts) and kpts[i][0] > 0 and kpts[i][1] > 0]
+                            if head_points:
+                                x_coords = [pt[0] for pt in head_points]
+                                y_coords = [pt[1] for pt in head_points]
+                                x_center = sum(x_coords) / len(x_coords)
+                                head_top = min(y_coords)
+                                
+                                # Размер каски примерно равен ширине головы
+                                head_width = max(x_coords) - min(x_coords)
+                                helmet_size = head_width * 1.2
+                                
+                                area = (
+                                    int(max(0, x_center - helmet_size/2)),
+                                    int(max(0, head_top - helmet_size)),
+                                    int(min(frame_shape[1], x_center + helmet_size/2)),
+                                    int(min(frame_shape[0], head_top))
+                                )
+                                missing_areas.append((area, siz_type))
+                        
+                        # Аналогично для других типов СИЗ
+                        elif siz_type == 'glove':
+                            # Для левой и правой руки отдельно
+                            for hand_idx in [9, 10]:  # Индексы запястий в COCO
+                                if hand_idx < len(kpts) and kpts[hand_idx][0] > 0:
+                                    x, y = kpts[hand_idx]
+                                    glove_size = 50  # Фиксированный размер для перчаток
+                                    area = (
+                                        int(max(0, x - glove_size/2)),
+                                        int(max(0, y - glove_size/2)),
+                                        int(min(frame_shape[1], x + glove_size/2)),
+                                        int(min(frame_shape[0], y + glove_size/2))
+                                    )
+                                    missing_areas.append((area, siz_type))
+                        
+                        elif siz_type == 'vest':
+                            # Область туловища
+                            body_points = [kpts[i] for i in [5,6,11,12]  # Плечи и бедра
+                                        if i < len(kpts) and kpts[i][0] > 0]
+                            if len(body_points) >= 2:
+                                x_coords = [pt[0] for pt in body_points]
+                                y_coords = [pt[1] for pt in body_points]
+                                x_center = sum(x_coords) / len(x_coords)
+                                y_center = sum(y_coords) / len(y_coords)
+                                width = max(x_coords) - min(x_coords)
+                                height = max(y_coords) - min(y_coords)
+                                
+                                area = (
+                                    int(max(0, x_center - width/2)),
+                                    int(max(0, y_center - height/3)),
+                                    int(min(frame_shape[1], x_center + width/2)),
+                                    int(min(frame_shape[0], y_center + height/3))
+                                )
+                                missing_areas.append((area, siz_type))
+                        
+                        elif siz_type == 'pants':
+                            # Получаем точки ног (бедра и колени)
+                            left_hip_idx, right_hip_idx = 11, 12
+                            left_knee_idx, right_knee_idx = 13, 14
+                            
+                            left_hip = kpts[left_hip_idx] if left_hip_idx < len(kpts) and kpts[left_hip_idx][0] > 0 else None
+                            right_hip = kpts[right_hip_idx] if right_hip_idx < len(kpts) and kpts[right_hip_idx][0] > 0 else None
+                            left_knee = kpts[left_knee_idx] if left_knee_idx < len(kpts) and kpts[left_knee_idx][0] > 0 else None
+                            right_knee = kpts[right_knee_idx] if right_knee_idx < len(kpts) and kpts[right_knee_idx][0] > 0 else None
+                            
+                            if left_hip is not None and left_knee is not None:
+                                # Левая нога
+                                width = 40  # Фиксированная ширина для штанин
+                                area_left = (
+                                    int(max(0, left_hip[0] - width/2)),
+                                    int(min(left_hip[1], left_knee[1])),
+                                    int(min(frame_shape[1], left_hip[0] + width/2)),
+                                    int(max(left_hip[1], left_knee[1]))
+                                )
+                                missing_areas.append((area_left, siz_type))
+                                
+                            if right_hip is not None and right_knee is not None:
+                                # Правая нога
+                                width = 40  # Фиксированная ширина для штанин
+                                area_right = (
+                                    int(max(0, right_hip[0] - width/2)),
+                                    int(min(right_hip[1], right_knee[1])),
+                                    int(min(frame_shape[1], right_hip[0] + width/2)),
+                                    int(max(right_hip[1], right_knee[1]))
+                                )
+                                missing_areas.append((area_right, siz_type))
+                        
+            return missing_areas
+        except Exception as e:
+            self.logger.error(f"Error getting missing SIZ areas: {str(e)}")
+            return []
+    
+    def _is_siz_in_model(self, siz_type, class_names):
+        """Проверяет, есть ли данный тип СИЗ в загруженной модели"""
+        siz_type = siz_type.lower()
+        for class_name in class_names:
+            if siz_type in class_name.lower():
+                return True
+        return False
