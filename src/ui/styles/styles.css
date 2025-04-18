@@ -73,8 +73,27 @@ QPushButton[text="Обзор"],
 QPushButton[text="+"],
 QPushButton[text="Управление моделями"],
 QPushButton[text="Запустить анализ"],
-QPushButton[text="Активировать"] 
+QPushButton[text="Активировать"] {
+    background-color: #ffffff; /* такой же как у базовых кнопок */
+    color: #000000;
+}
 
+/* Эффекты при наведении/нажатии для специальных кнопок */
+QPushButton[text="Обзор"]:hover,
+QPushButton[text="+"]:hover,
+QPushButton[text="Управление моделями"]:hover,
+QPushButton[text="Запустить анализ"]:hover,
+QPushButton[text="Активировать"]:hover {
+    background-color: #d0d0d0;
+}
+
+QPushButton[text="Обзор"]:pressed,
+QPushButton[text="+"]:pressed,
+QPushButton[text="Управление моделями"]:pressed,
+QPushButton[text="Запустить анализ"]:pressed,
+QPushButton[text="Активировать"]:pressed {
+    background-color: #c0c0c0;
+}
 
 /* Кнопка Start/Stop */
 QPushButton#startButton {
