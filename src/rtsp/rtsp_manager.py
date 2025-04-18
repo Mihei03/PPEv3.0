@@ -44,7 +44,6 @@ class RtspManagerDialog(QDialog):
     
     def add_rtsp(self):
         existing_names = set(self.rtsp_storage.get_all_rtsp().keys())
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,

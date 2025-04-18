@@ -4,17 +4,45 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from core.utils.rtsp_validator import RtspValidator
+import sqlite3
 
 
 class RtspEditDialog(QDialog):
-    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False, available_models=None):
+    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False, available_models=None, db_connection=None):
         super().__init__(parent)
         self.existing_names = existing_names or set()
         self.is_edit_mode = is_edit_mode  
-        self.available_models = available_models or []
-        print(available_models)
+        self.db_connection = db_connection
+        self.available_models = self._validate_models(available_models or [])
         self.setup_ui()
-        # Переносим вызов _update_ui_for_mode() в конец setup_ui()
+
+    def _validate_models(self, models):
+        """Проверяет актуальность моделей в БД и возвращает только валидные"""
+        valid_models = []
+        
+        if not self.db_connection:
+            return valid_models
+            
+        try:
+            cursor = self.db_connection.cursor()
+            
+            for model in models:
+                if len(model) < 3:  # Проверяем, что модель содержит как минимум (id, name, comment)
+                    continue
+                    
+                model_id, model_name, _ = model
+                
+                # Проверяем, существует ли модель в БД
+                cursor.execute("SELECT id FROM camera_models WHERE id = ? AND name = ?", (model_id, model_name))
+                result = cursor.fetchone()
+                
+                if result:
+                    valid_models.append(model)
+                    
+        except sqlite3.Error as e:
+            print(f"Ошибка при проверке моделей в БД: {e}")
+            
+        return valid_models
 
     def setup_ui(self):
         """Настраивает интерфейс диалогового окна"""
@@ -36,12 +64,9 @@ class RtspEditDialog(QDialog):
         self.comment_input = QTextEdit()
         form.addRow("Комментарий:", self.comment_input)
         
-        # Комбобокс для выбора модели (без варианта "Не выбрана")
-        #TODO: проверить актуальность моделей из бд
+        # Комбобокс для выбора модели
         self.model_combo = QComboBox()
-        if self.available_models:  # Добавляем только реальные модели
-            for id, model_name, _ in self.available_models:
-                self.model_combo.addItem(model_name, id)
+        self._setup_model_combo()
         form.addRow("Привязать модель:", self.model_combo)
         
         # Кнопки OK/Cancel
@@ -60,6 +85,18 @@ class RtspEditDialog(QDialog):
         self.setLayout(layout)
         
         self._update_ui_for_mode()
+
+    def _setup_model_combo(self):
+        """Настраивает комбобокс с моделями"""
+        self.model_combo.clear()
+        
+        if not self.available_models:
+            self.model_combo.addItem("Нет доступных моделей", None)
+            self.model_combo.setEnabled(False)
+            return
+            
+        for model_id, model_name, _ in self.available_models:
+            self.model_combo.addItem(model_name, model_id)
 
     def _validate_url(self):
         url = self.url_input.text().strip()
@@ -117,8 +154,8 @@ class RtspEditDialog(QDialog):
             self.name_input.selectAll()
             return
             
-        # Обязательная проверка выбора модели
-        if not self.model_combo.currentData():
+        # Проверка выбора модели (если есть доступные модели)
+        if self.available_models and not self.model_combo.currentData():
             QMessageBox.warning(self, "Ошибка", "Необходимо выбрать модель для RTSP потока")
             return
         
