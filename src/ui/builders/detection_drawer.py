@@ -91,7 +91,7 @@ class DetectionDrawer:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 
                 # Подпись с типом отсутствующего СИЗ
-                label = f"Отсутствует {siz_type}"
+                label = f"Missing {siz_type}"
                 (label_width, label_height), _ = cv2.getTextSize(label, 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
                 
