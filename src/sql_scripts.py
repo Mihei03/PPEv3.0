@@ -2,7 +2,7 @@ class SQL:
   INIT_DB = """
     CREATE TABLE IF NOT EXISTS camera_models (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      file_path TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL UNIQUE,
       comment TEXT
     );
 
@@ -15,7 +15,7 @@ class SQL:
       FOREIGN KEY (model_id) REFERENCES camera_models(id) ON DELETE RESTRICT
     );
 
-    CREATE INDEX IF NOT EXISTS idx_file_path ON camera_models(file_path);
+    CREATE INDEX IF NOT EXISTS idx_name ON camera_models(name);
     CREATE INDEX IF NOT EXISTS idx_rtsp_source ON cameras(rtsp_source);
     CREATE INDEX IF NOT EXISTS idx_model_id ON cameras(model_id);
   """

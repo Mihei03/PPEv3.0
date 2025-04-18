@@ -55,18 +55,16 @@ class RtspTable(QTableWidget):
         
     def populate(self, data):
         self.setRowCount(len(data))
+        print(data)
         for row, (name, info) in enumerate(data.items()):
             num_item = QTableWidgetItem(str(row + 1))
             name_item = QTableWidgetItem(name)
             url_item = QTableWidgetItem(info.get("url", ""))
             comment_item = QTableWidgetItem(info.get("comment", ""))
             # Пустая строка, если модель не выбрана
-            model_item = QTableWidgetItem(info.get("model", ""))
-            
-            model_comment = info.get("model_comment", "")
-            
-            if model_comment:
-                model_item.setToolTip(model_comment)
+            model_item = QTableWidgetItem(str(info.get("model", "")))
+
+            print(info.get("model", ""))
             
             # Настройка отображения текста
             for item in [num_item, name_item, url_item, comment_item, model_item]:
