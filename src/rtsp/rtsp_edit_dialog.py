@@ -4,45 +4,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from core.utils.rtsp_validator import RtspValidator
-import sqlite3
 
 
 class RtspEditDialog(QDialog):
-    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False, available_models=None, db_connection=None):
+    def __init__(self, parent=None, existing_names=None, is_edit_mode: bool = False, available_models=None):
         super().__init__(parent)
         self.existing_names = existing_names or set()
         self.is_edit_mode = is_edit_mode  
-        self.db_connection = db_connection
-        self.available_models = self._validate_models(available_models or [])
+        self.available_models = available_models or []
         self.setup_ui()
-
-    def _validate_models(self, models):
-        """Проверяет актуальность моделей в БД и возвращает только валидные"""
-        valid_models = []
-        
-        if not self.db_connection:
-            return valid_models
-            
-        try:
-            cursor = self.db_connection.cursor()
-            
-            for model in models:
-                if len(model) < 3:  # Проверяем, что модель содержит как минимум (id, name, comment)
-                    continue
-                    
-                model_id, model_name, _ = model
-                
-                # Проверяем, существует ли модель в БД
-                cursor.execute("SELECT id FROM camera_models WHERE id = ? AND name = ?", (model_id, model_name))
-                result = cursor.fetchone()
-                
-                if result:
-                    valid_models.append(model)
-                    
-        except sqlite3.Error as e:
-            print(f"Ошибка при проверке моделей в БД: {e}")
-            
-        return valid_models
 
     def setup_ui(self):
         """Настраивает интерфейс диалогового окна"""
@@ -66,7 +36,6 @@ class RtspEditDialog(QDialog):
         
         # Комбобокс для выбора модели
         self.model_combo = QComboBox()
-        self._setup_model_combo()
         form.addRow("Привязать модель:", self.model_combo)
         
         # Кнопки OK/Cancel
@@ -74,8 +43,11 @@ class RtspEditDialog(QDialog):
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
         )
-        
+    
         self.ok_button = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.cancel_button = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        self.ok_button.setText("Сохранить" if self.is_edit_mode else "Добавить")
+        self.cancel_button.setText("Отмена")  # Устанавливаем русский текст
         
         self.buttons.accepted.connect(self._validate_and_accept)
         self.buttons.rejected.connect(self.reject)
@@ -84,28 +56,34 @@ class RtspEditDialog(QDialog):
         layout.addWidget(self.buttons)
         self.setLayout(layout)
         
+        # Теперь обновляем модели после создания всех элементов UI
+        self._update_models_combo()
         self._update_ui_for_mode()
 
-    def _setup_model_combo(self):
-        """Настраивает комбобокс с моделями"""
+    def _update_models_combo(self):
+        """Обновляет список моделей в комбобоксе, проверяя их актуальность"""
         self.model_combo.clear()
         
-        if not self.available_models:
-            self.model_combo.addItem("Нет доступных моделей", None)
-            self.model_combo.setEnabled(False)
-            return
-            
-        for model_id, model_name, _ in self.available_models:
-            self.model_combo.addItem(model_name, model_id)
+        if self.available_models:
+            for id, model_name, _ in self.available_models:
+                self.model_combo.addItem(model_name, id)
+        
+        # Проверяем, создана ли уже кнопка ok_button
+        if hasattr(self, 'ok_button'):
+            if self.model_combo.count() == 0:
+                self.model_combo.addItem("Нет доступных моделей", None)
+                self.model_combo.setEnabled(False)
+                self.ok_button.setEnabled(False)
+            else:
+                self.model_combo.setEnabled(True)
+                self.ok_button.setEnabled(True)
 
     def _validate_url(self):
         url = self.url_input.text().strip()
         is_valid, _ = RtspValidator.validate_rtsp_url(url)
         
-        # Используем свойство вместо прямого setStyleSheet
         self.url_input.setProperty("valid", is_valid)
         
-        # Обновляем стиль
         self.url_input.style().unpolish(self.url_input)
         self.url_input.style().polish(self.url_input)
         self.url_input.update()
@@ -136,7 +114,6 @@ class RtspEditDialog(QDialog):
             QMessageBox.warning(self, "Ошибка", "Название не может быть пустым")
             return
             
-        # Полная проверка URL
         is_valid, error_msg = RtspValidator.validate_rtsp_url(url)
         if not is_valid:
             QMessageBox.warning(self, "Ошибка", error_msg)
@@ -154,8 +131,7 @@ class RtspEditDialog(QDialog):
             self.name_input.selectAll()
             return
             
-        # Проверка выбора модели (если есть доступные модели)
-        if self.available_models and not self.model_combo.currentData():
+        if not self.model_combo.currentData():
             QMessageBox.warning(self, "Ошибка", "Необходимо выбрать модель для RTSP потока")
             return
         

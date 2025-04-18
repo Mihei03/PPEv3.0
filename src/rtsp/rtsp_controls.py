@@ -83,18 +83,23 @@ class RtspControls(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите RTSP поток для удаления")
             return
             
-        reply = QMessageBox.question(
-            self, 
-            "Подтверждение", 
-            f"Вы уверены, что хотите удалить '{selected['name']}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        msg_box = QMessageBox(QMessageBox.Icon.Question, 
+                            "Подтверждение", 
+                            f"Вы уверены, что хотите удалить '{selected['name']}'?",
+                            QMessageBox.StandardButton.NoButton, 
+                            self)
         
-        if reply == QMessageBox.StandardButton.Yes:
+        # Создаем собственные кнопки
+        yes_btn = msg_box.addButton("Да", QMessageBox.ButtonRole.YesRole)
+        no_btn = msg_box.addButton("Нет", QMessageBox.ButtonRole.NoRole)
+        
+        msg_box.setDefaultButton(no_btn)
+        msg_box.exec()
+        
+        if msg_box.clickedButton() == yes_btn:
             if self.manager.rtsp_storage.remove_rtsp(selected['name']):
                 self.manager.load_data()
                 self.manager.data_changed.emit()
-                # Обновляем список в главном окне через родительское окно
                 if hasattr(self.manager, 'parent_window') and hasattr(self.manager.parent_window, 'rtsp_manager'):
                     self.manager.parent_window.rtsp_manager.load_rtsp_list()
             else:

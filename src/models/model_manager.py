@@ -73,18 +73,22 @@ class ModelManagerDialog(QDialog):
             QMessageBox.warning(self, "Ошибка", "Выберите модель для удаления")
             return
             
-        reply = QMessageBox.question(
-            self, 
-            "Подтверждение", 
-            f"Вы уверены, что хотите удалить модель '{selected['name']}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        msg_box = QMessageBox(QMessageBox.Icon.Question,
+                            "Подтверждение", 
+                            f"Вы уверены, что хотите удалить модель '{selected['name']}'?",
+                            QMessageBox.StandardButton.NoButton,
+                            self)
         
-        if reply == QMessageBox.StandardButton.Yes:
+        # Создаем собственные кнопки
+        yes_btn = msg_box.addButton("Да", QMessageBox.ButtonRole.YesRole)
+        no_btn = msg_box.addButton("Нет", QMessageBox.ButtonRole.NoRole)
+        
+        msg_box.setDefaultButton(no_btn)
+        reply = msg_box.exec()
+        
+        if msg_box.clickedButton() == yes_btn:
             if self.model_handler.remove_model(selected['name']):
-                
                 self.model_storage.remove_model(selected['name'])
-
                 self.load_data()
                 self.models_updated.emit()
             else:

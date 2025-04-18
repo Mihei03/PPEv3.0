@@ -32,13 +32,16 @@ class ModelEditDialog(QDialog):
         form.addRow("Название модели:", self.name_input)
         form.addRow("Комментарий:", self.comment_input)
         
+        # Кнопки с русскими надписями
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
         )
         
         self.ok_button = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.cancel_button = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
         self.ok_button.setText("Сохранить изменения" if self.is_edit_mode else "Добавить модель")
+        self.cancel_button.setText("Отмена")  # Устанавливаем русский текст
         
         self.buttons.accepted.connect(self._validate_and_accept)
         self.buttons.rejected.connect(self.reject)

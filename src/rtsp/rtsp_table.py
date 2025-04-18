@@ -62,7 +62,6 @@ class RtspTable(QTableWidget):
             comment_item = QTableWidgetItem(info.get("comment", ""))
             # Пустая строка, если модель не выбрана
             model_item = QTableWidgetItem(str(info.get("model", "")))
-            
             # Настройка отображения текста
             for item in [num_item, name_item, url_item, comment_item, model_item]:
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
