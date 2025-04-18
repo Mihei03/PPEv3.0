@@ -23,7 +23,7 @@ class RtspStorage:
             self.logger.info(f"Создан новый файл хранилища: {self.storage_file}")
             
 
-    def add_rtsp(self, name: str, url: str, comment: str = "", model: str = None) -> bool:
+    def add_rtsp(self, name: str, url: str, comment: str = "", model_id: int = None) -> bool:
         """Добавляет RTSP-поток в хранилище"""
         try:
             # Валидация через общий RtspValidator
@@ -31,10 +31,12 @@ class RtspStorage:
             if not is_valid:
                 self.logger.error(f"Некорректный RTSP URL: {error_msg}")
                 return False
+            
+            self.logger.info((name, url, comment, model_id))
 
             with sqlite3.connect(self.storage_file) as con:
                 c = con.cursor()
-                c.execute("INSERT INTO cameras (name, rtsp_source, comment) VALUES (?,?,?)", (name, url, comment))
+                c.execute("INSERT INTO cameras (name, rtsp_source, comment, model_id) VALUES (?,?,?, ?)", (name, url, comment, model_id))
                 return True
             
         except Exception as e:
@@ -46,11 +48,15 @@ class RtspStorage:
         try:
             with sqlite3.connect(self.storage_file) as con:
                 c = con.cursor()
-                c.execute("SELECT name, rtsp_source, comment FROM cameras")
+                c.execute("SELECT c.name, c.rtsp_source, c.comment, m.name FROM cameras c JOIN camera_models m ON c.model_id = m.id")
                 items = c.fetchall()
                                 
                 res = {
-                    name: {"url": rtsp, "comment": comment} for name, rtsp, comment in items
+                    name: {
+                        "url": rtsp,
+                        "comment": comment,
+                        "model": model
+                        } for name, rtsp, comment, model in items
                 }
                 
                 return res

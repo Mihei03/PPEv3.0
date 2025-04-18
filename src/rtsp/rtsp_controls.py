@@ -1,10 +1,13 @@
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QMessageBox
+
+from models.model_storage import ModelStorage
 from .rtsp_edit_dialog import RtspEditDialog
 
 class RtspControls(QWidget):
     def __init__(self, manager_dialog):
         super().__init__()
         self.manager = manager_dialog
+        self.model_storage = ModelStorage()
         self.setup_ui()
         
     def setup_ui(self):
@@ -30,7 +33,7 @@ class RtspControls(QWidget):
             parent=self,
             existing_names=existing_names,
             is_edit_mode=False,
-            available_models=self.manager.model_handler.get_models_info() if hasattr(self.manager, 'model_handler') and self.manager.model_handler else {}
+            available_models=self.model_storage.get_all_models() if self.model_storage else []
         )
         
         if dialog.exec():
@@ -55,7 +58,7 @@ class RtspControls(QWidget):
             parent=self,
             existing_names=existing_names,
             is_edit_mode=True,
-            available_models=self.manager.model_handler.get_models_info() if hasattr(self.manager, 'model_handler') and self.manager.model_handler else {}
+            available_models=self.model_storage.get_all_models() if self.model_storage else []
         )
         
         dialog.name_input.setText(selected['name'])

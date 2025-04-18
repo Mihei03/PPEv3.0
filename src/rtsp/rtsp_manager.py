@@ -1,4 +1,6 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QMessageBox
+
+from models.model_storage import ModelStorage
 from .rtsp_table import RtspTable
 from .rtsp_controls import RtspControls
 from .rtsp_edit_dialog import RtspEditDialog
@@ -12,6 +14,7 @@ class RtspManagerDialog(QDialog):
         super().__init__(parent)
         self.rtsp_storage = rtsp_storage
         self.model_handler = model_handler 
+        self.model_storage = ModelStorage()
         self.parent_window = parent
         self.setup_ui()
         
@@ -41,11 +44,12 @@ class RtspManagerDialog(QDialog):
     
     def add_rtsp(self):
         existing_names = set(self.rtsp_storage.get_all_rtsp().keys())
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
         dialog = RtspEditDialog(
             parent=self,
             existing_names=existing_names,
             is_edit_mode=False,
-            available_models=self.model_handler.get_available_models() if self.model_handler else {}
+            available_models=self.model_storage.get_all_models() if self.model_handler else []
         )
         
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -69,7 +73,7 @@ class RtspManagerDialog(QDialog):
             parent=self,
             existing_names=existing_names,
             is_edit_mode=True,
-            available_models=self.model_handler.get_available_models() if self.model_handler else {}
+            available_models=self.model_storage.get_all_models() if self.model_handler else []
         )
         
         dialog.name_input.setText(selected['name'])

@@ -11,7 +11,8 @@ class RtspEditDialog(QDialog):
         super().__init__(parent)
         self.existing_names = existing_names or set()
         self.is_edit_mode = is_edit_mode  
-        self.available_models = available_models or {}
+        self.available_models = available_models or []
+        print(available_models)
         self.setup_ui()
         # Переносим вызов _update_ui_for_mode() в конец setup_ui()
 
@@ -36,10 +37,11 @@ class RtspEditDialog(QDialog):
         form.addRow("Комментарий:", self.comment_input)
         
         # Комбобокс для выбора модели (без варианта "Не выбрана")
+        #TODO: проверить актуальность моделей из бд
         self.model_combo = QComboBox()
         if self.available_models:  # Добавляем только реальные модели
-            for model_name, model_info in self.available_models.items():
-                self.model_combo.addItem(model_name, model_name)
+            for id, model_name, _ in self.available_models:
+                self.model_combo.addItem(model_name, id)
         form.addRow("Привязать модель:", self.model_combo)
         
         # Кнопки OK/Cancel
