@@ -4,7 +4,6 @@ from .builders.ui_builder import UIBuilder
 class MainWindowUI(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.controller = None 
         self.ui_builder = UIBuilder(self)
         self.ui_builder.build_ui()
         self.setMinimumSize(1200, 900)

@@ -18,12 +18,10 @@ import os
 
 class MainController(QObject):
     theme_changed = pyqtSignal(bool)
-    manage_models_requested = pyqtSignal()
     
     def __init__(self, ui):
         super().__init__()
         self.ui = ui
-        self.ui.controller = self
         self.logger = AppLogger.get_logger()
         self.settings = QSettings("MyCompany", "SIZDetector")
         self.processing_active = False
@@ -104,7 +102,7 @@ class MainController(QObject):
         self.ui.model_panel.activate_model_btn.clicked.connect(
             self.model_manager.activate_model
         )
-        self.ui.control_panel.manage_models_btn.clicked.connect(
+        self.ui.model_panel.manage_models_btn.clicked.connect(
             self.model_manager.show_models_dialog
         )
         self.ui.control_panel.source_type.currentIndexChanged.connect(
