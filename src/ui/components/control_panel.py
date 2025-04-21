@@ -66,12 +66,17 @@ class ControlPanel:
                             QSizePolicy.Policy.Expanding, 
                             QSizePolicy.Policy.Minimum)
         
+        # Добавляем кнопку управления моделями перед кнопкой запуска
+        self.manage_models_btn = QPushButton("Управление моделями")
+        self.manage_models_btn.setObjectName("manageModelsButton")
+        
         self.start_btn = QPushButton("Запустить анализ")
         self.start_btn.setObjectName("startButton")
         self.start_btn.setEnabled(False)
         
         bottom_layout.addWidget(self.landmarks_check)
         bottom_layout.addItem(spacer)
+        bottom_layout.addWidget(self.manage_models_btn)
         bottom_layout.addWidget(self.start_btn)
         
         layout.addWidget(source_row)
@@ -86,7 +91,11 @@ class ControlPanel:
         self.source_type.currentIndexChanged.connect(self._update_source_type)
         self.start_btn.clicked.connect(self._handle_start_btn_click)
         self.rtsp_combo.currentTextChanged.connect(self._validate_rtsp_selection)
-    
+        # Подключаем кнопку управления моделями к соответствующему обработчику
+        self.manage_models_btn.clicked.connect(
+            lambda: self.main_window.controller.manage_models_requested.emit()
+        )
+        
     def _validate_rtsp_selection(self):
         if self.source_type.currentIndex() == 2:  # Если выбран RTSP
             if hasattr(self.main_window, 'rtsp_manager'):
