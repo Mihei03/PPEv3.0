@@ -14,6 +14,7 @@ class ControlPanel:
         self.rtsp_combo = None
         self.add_rtsp_btn = None
         self.start_btn = None
+        self.manage_models_btn = None  # Добавлено
         self._setup_panel()
         
     def _setup_panel(self):
@@ -66,12 +67,15 @@ class ControlPanel:
                             QSizePolicy.Policy.Expanding, 
                             QSizePolicy.Policy.Minimum)
         
+        # Добавлена кнопка управления моделями
+        self.manage_models_btn = QPushButton("Управление моделями")
         self.start_btn = QPushButton("Запустить анализ")
         self.start_btn.setObjectName("startButton")
         self.start_btn.setEnabled(False)
         
         bottom_layout.addWidget(self.landmarks_check)
         bottom_layout.addItem(spacer)
+        bottom_layout.addWidget(self.manage_models_btn)  # Добавлено перед кнопкой запуска
         bottom_layout.addWidget(self.start_btn)
         
         layout.addWidget(source_row)

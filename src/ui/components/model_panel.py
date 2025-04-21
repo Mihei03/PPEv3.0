@@ -7,10 +7,8 @@ class ModelPanel:
         self.panel = QWidget()
         self.model_combo = QComboBox()
         self.activate_model_btn = QPushButton("Активировать")
-        self.manage_models_btn = QPushButton("Управление моделями")
         self.model_combo = None
-        self.activate_btn = None
-        self.manage_btn = None    
+        self.activate_btn = None    
         self._setup_panel()
         
     def _setup_panel(self):
@@ -27,14 +25,12 @@ class ModelPanel:
             QSizePolicy.Policy.Fixed
         )
         
-        # Инициализация кнопок с сохранением ссылок
+        # Инициализация кнопки активации
         self.activate_model_btn.setEnabled(False)
-        self.manage_models_btn.setEnabled(True)
         
         layout.addWidget(self.model_label)
         layout.addWidget(self.model_combo, stretch=1)
         layout.addWidget(self.activate_model_btn)
-        layout.addWidget(self.manage_models_btn)
 
         self.model_combo.currentTextChanged.connect(self._on_model_changed)
     

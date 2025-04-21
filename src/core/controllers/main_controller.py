@@ -102,7 +102,7 @@ class MainController(QObject):
         self.ui.model_panel.activate_model_btn.clicked.connect(
             self.model_manager.activate_model
         )
-        self.ui.model_panel.manage_models_btn.clicked.connect(
+        self.ui.control_panel.manage_models_btn.clicked.connect(
             self.model_manager.show_models_dialog
         )
         self.ui.control_panel.source_type.currentIndexChanged.connect(

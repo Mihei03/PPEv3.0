@@ -131,7 +131,7 @@ class ProcessingManager(QObject):
             self.main.ui.control_panel.add_rtsp_btn,
             self.main.ui.model_panel.model_combo,
             self.main.ui.model_panel.activate_model_btn,
-            self.main.ui.model_panel.manage_models_btn
+            self.main.ui.control_panel.manage_models_btn 
         ]
         
         for widget in widgets:
