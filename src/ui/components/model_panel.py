@@ -26,7 +26,7 @@ class ModelPanel:
         )
         
         # Инициализация кнопки активации
-        self.activate_model_btn.setEnabled(False)
+        self.activate_model_btn.setEnabled(True)
         
         layout.addWidget(self.model_label)
         layout.addWidget(self.model_combo, stretch=1)
@@ -36,6 +36,10 @@ class ModelPanel:
     
     def _on_model_changed(self):
         """Обработчик изменения модели"""
-        self.activate_model_btn.setEnabled(True)
-        if hasattr(self.main_window, 'control_panel'):
-            self.main_window.control_panel.start_btn.setEnabled(False)
+        if not hasattr(self.main_window, '_is_programmatic_change'):
+            # Проверяем, действительно ли пользователь выбрал другую модель
+            current_text = self.model_combo.currentText()
+            if current_text and current_text != "Нет доступных моделей":
+                self.activate_model_btn.setEnabled(True)
+                if hasattr(self.main_window, 'control_panel'):
+                    self.main_window.control_panel.start_btn.setEnabled(False)

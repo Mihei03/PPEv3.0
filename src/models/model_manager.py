@@ -39,13 +39,20 @@ class ModelManagerDialog(QDialog):
         
     def load_data(self):
         """Загружает данные моделей и обновляет таблицу"""
-        # models = self.model_handler.get_models_info()
+        # Устанавливаем флаг программного изменения
+        if hasattr(self.parent(), '_is_programmatic_change'):
+            self.parent()._is_programmatic_change = True
+        
         models = self.model_storage.get_all_models()
         self.logger.info(models)
         
         self.table.populate(models)
         # Принудительно обновляем сортировку
         self.table.sortItems(self.table._last_sorted_column, self.table._sort_order)
+        
+        # Снимаем флаг после обновления
+        if hasattr(self.parent(), '_is_programmatic_change'):
+            self.parent()._is_programmatic_change = False
     
     def add_model(self):
         dialog = ModelEditDialog(parent=self, is_edit_mode=False)
@@ -61,9 +68,7 @@ class ModelManagerDialog(QDialog):
                 folder_path=model_data['path'],
                 model_name=model_data['name']
             ):
-
                 self.model_storage.add_model(model_data['name'], model_data['comment'])
-
                 self.load_data()
                 self.models_updated.emit()
     
@@ -106,7 +111,7 @@ class ModelManagerDialog(QDialog):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             new_data = dialog.get_model_data()
             
-            #Если имя изменилось - переименовываем модель
+            # Если имя изменилось - переименовываем модель
             if new_data['name'] != selected['name']: 
                 if not self.model_handler.rename_model(selected['name'], new_data['name']):
                     QMessageBox.warning(self, "Ошибка", "Не удалось переименовать модель")

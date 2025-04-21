@@ -42,17 +42,29 @@ class ModelManager(QObject):
 
     def refresh_models_list(self):
         models = self.main.model_handler.refresh_models_list()
+        
+        # Сохраняем текущий выбор
+        current_model = self.main.ui.model_panel.model_combo.currentText()
+        
+        # Блокируем сигнал на время обновления
+        self.main.ui.model_panel.model_combo.blockSignals(True)
         self.main.ui.model_panel.model_combo.clear()
         
         if models:
             self.main.ui.model_panel.model_combo.addItems(models)
-            # Гарантированно блокируем кнопку
-            self.main.ui.control_panel.start_btn.setEnabled(False)
+            # Восстанавливаем предыдущий выбор, если он есть в новом списке
+            if current_model in models:
+                self.main.ui.model_panel.model_combo.setCurrentText(current_model)
             self.main.ui.status_bar.show_message(f"Доступно моделей: {len(models)}", 3000)
         else:
             self.main.ui.model_panel.model_combo.addItem("Нет доступных моделей")
+        
+        # Разблокируем сигнал
+        self.main.ui.model_panel.model_combo.blockSignals(False)
+        
+        # Гарантированно блокируем кнопку только если модель не активирована
+        if not self.main.model_handler.is_model_activated():
             self.main.ui.control_panel.start_btn.setEnabled(False)
-
     def show_models_dialog(self):
         try:
             dialog = ModelManagerDialog(self.main.model_handler, self.main.ui)

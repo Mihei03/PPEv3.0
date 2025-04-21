@@ -198,3 +198,7 @@ class MainController(QObject):
         
         model_activated = bool(self.model_handler.is_model_activated())
         self.ui.control_panel.start_btn.setEnabled(field_valid and model_activated)
+        
+        # Если модель уже активирована, не блокируем кнопку при обновлении списка
+        if model_activated and field_valid:
+            self.ui.control_panel.start_btn.setEnabled(True)
