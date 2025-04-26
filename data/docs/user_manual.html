@@ -13,6 +13,12 @@
             color: #2d3436;
             background-color: #f9f9f9;
         }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dfe6e9;
+        }
         h1 {
             color: #0984e3;
             font-size: 2.2em;
@@ -58,7 +64,7 @@
             max-width: 100%;
             height: auto;
             border: 1px solid #ddd;
-            margin: 15px auto; /* Изменено для центрирования */
+            margin: 15px auto;
             border-radius: 5px;
             display: block;
         }
@@ -68,7 +74,7 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
         }
-        ul {
+        ul, ol {
             padding-left: 25px;
         }
         li {
@@ -91,19 +97,211 @@
             font-weight: bold;
             margin: 0 3px;
         }
-        /* Добавлены новые стили для центрирования изображений в списках */
-        ul img {
-            margin-left: auto;
-            margin-right: auto;
+        .feature-list, .tech-list {
+            padding-left: 25px;
+        }
+        .feature-list li, .tech-list li {
+            margin-bottom: 10px;
+        }
+        .logo {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .logo img {
+            max-width: 250px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .contact-info {
+            background-color: #e3f2fd;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 40px;
+            border-left: 5px solid #2196f3;
+        }
+        .toc {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        border-left: 5px solid #0984e3;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .toc h2 {
+            color: #0984e3;
+            font-size: 1.5em;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #00cec9;
+            text-align: center;
+        }
+        .toc-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .toc-column {
+            flex: 1;
+            min-width: 250px;
+        }
+        .toc-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        .toc-list li {
+            margin-bottom: 12px;
+            position: relative;
+            padding-left: 20px;
+            transition: all 0.3s ease;
+        }
+        .toc-list li:before {
+            content: "•";
+            color: #00cec9;
+            font-size: 1.4em;
+            position: absolute;
+            left: 0;
+            top: -2px;
+        }
+        .toc-list li:hover {
+            transform: translateX(5px);
+        }
+        .toc-list a {
+            color: #2d3436;
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background-color: rgba(255,255,255,0.7);
+            transition: all 0.2s ease;
+        }
+        .toc-list a:hover {
+            background-color: #0984e3;
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 3px 8px rgba(9, 132, 227, 0.3);
+        }
+        .toc-sublist {
+            list-style-type: none;
+            padding-left: 15px;
+            margin-top: 8px;
+        }
+        .toc-sublist li {
+            margin-bottom: 8px;
+            padding-left: 15px;
+        }
+        .toc-sublist li:before {
+            content: "◦";
+            color: #74b9ff;
+            font-size: 1.2em;
+        }
+        .toc-sublist a {
+            font-weight: normal;
+            padding: 4px 8px;
+            background-color: rgba(255,255,255,0.4);
+        }
+        .toc-badge {
+            display: inline-block;
+            background-color: #0984e3;
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
         }
     </style>
 </head>
 <body>
-    <h1>Руководство пользователя PPEsv3.0</h1>
+    <div class="header">
+        <div class="logo">
+            <img src="../images/app_icon.png" alt="Логотип PPEsv3.0">
+        </div>
+        <h1>PPEsv3.0 (Система обнаружения СИЗ)</h1>
+        <p class="version">Версия 3.0 | 2025 год</p>
+    </div>
 
-    <h2>1. Начало работы</h2>
+    <div class="toc">
+        <h2>Содержание</h2>
+        <div class="toc-container">
+            <div class="toc-column">
+                <ul class="toc-list">
+                    <li>
+                        <a href="#about">1. О программе</a>
+                    </li>
+                    <li>
+                        <a href="#start">2. Начало работы</a>
+                        <ul class="toc-sublist">
+                            <li><a href="#launch">2.1 Запуск программы</a></li>
+                            <li><a href="#source">2.2 Выбор источника видео</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#models">3. Работа с моделями</a>
+                        <ul class="toc-sublist">
+                            <li><a href="#select-model">3.1 Выбор модели</a></li>
+                            <li><a href="#manage-models">3.2 Управление моделями</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <div class="toc-column">
+                <ul class="toc-list">
+                    <li>
+                        <a href="#rtsp">4. RTSP потоки </a>
+                    </li>
+                    <li>
+                        <a href="#analysis">5. Анализ видео</a>
+                        <ul class="toc-sublist">
+                            <li><a href="#settings">5.1 Настройки</a></li>
+                            <li><a href="#run-analysis">5.2 Запуск анализа</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#results">6. Результаты</a>
+                    </li>
+                    <li>
+                        <a href="#troubleshooting">7. Решение проблем <span class="toc-badge">HELP</span></a>
+                    </li>
+                    <li>
+                        <a href="#contacts">8. Контакты</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <h2 id="about">1. О программе</h2>
     <div class="step">
-        <h3>1.1 Запуск программы</h3>
+        <p>Программа <strong>PPEsv3.0</strong> представляет собой инновационное решение для автоматического обнаружения <strong>Средств Индивидуальной Защиты (СИЗ)</strong> на производственных объектах в режиме реального времени.</p>
+        <p>Система обеспечивает:</p>
+        <ul class="feature-list">
+            <li>Контроль соблюдения норм безопасности персоналом</li>
+            <li>Снижение производственного травматизма</li>
+            <li>Автоматизированный мониторинг использования защитного оборудования</li>
+        </ul>
+
+        <h3>Основные функции</h3>
+        <ul class="feature-list">
+            <li><strong>Многофункциональное обнаружение:</strong> автоматическое распознавание касок, очков, перчаток, спецодежды и других СИЗ</li>
+            <li><strong>Мультиплатформенность:</strong> работа с веб-камерами, видеофайлами и RTSP-потоками</li>
+            <li><strong>Визуализация:</strong> отображение результатов с цветовой индикацией</li>
+        </ul>
+
+        <h3>Технологии</h3>
+        <ul class="tech-list">
+            <li><strong>Компьютерное зрение:</strong> OpenCV, YOLOv11</li>
+            <li><strong>Машинное обучение:</strong> Собственные модели</li>
+            <li><strong>Интерфейс:</strong> PyQt6 с адаптивным дизайном</li>
+            <li><strong>Ядро системы:</strong> Python 3.8.0</li>
+        </ul>
+    </div>
+
+    <h2 id="start">2. Начало работы</h2>
+    <div class="step">
+        <h3 id="launch">2.1 Запуск программы</h3>
         <p>Для запуска программы выполните следующие действия:</p>
         <ol>
             <li>Откройте командную строку/терминал в папке с программой</li>
@@ -115,7 +313,7 @@
     </div>
 
     <div class="step">
-        <h3>1.2 Выбор источника видео</h3>
+        <h3 id="source">2.2 Выбор источника видео</h3>
         <p>В левой нижней части интерфейса расположен блок выбора источника видеоданных (рисунок 2):</p>
         
         <img src="../images/Screenshots/Sources.png" alt="Выбор источника видео">
@@ -137,13 +335,13 @@
         <div class="note">
             <p><strong>Предупреждение:</strong> Укажите параметры источника: индекс камеры или путь к файлу (рисунок 6).</p>
             <img src="../images/Screenshots/id.png" alt="RTSP поток">
-            <p class="image-caption">Рисунок 6 – Параметры источника</p>
+            <p class="image-caption">Рисунок 6 – Параметры источников</p>
         </div>
     </div>
 
-    <h2>2. Работа с моделями обнаружения</h2>
+    <h2 id="models">3. Работа с моделями обнаружения</h2>
     <div class="step">
-        <h3>2.1 Выбор модели</h3>
+        <h3 id="select-model">3.1 Выбор модели</h3>
         <p>Для выбора модели обнаружения (рисунок 7):</p>
         <ol>
             <li>Раскройте выпадающий список "Модель"</li>
@@ -152,11 +350,10 @@
         </ol>
         <img src="../images/Screenshots/Detection Model Selection Panel.png" alt="Выбор модели">
         <p class="image-caption">Рисунок 7 – Панель выбора модели обнаружения</p>
-        
     </div>
 
     <div class="step">
-        <h3>2.2 Управление моделями</h3>
+        <h3 id="manage-models">3.2 Управление моделями</h3>
         <p>Для расширенного управления моделями:</p>
         <ol>
             <li>Нажмите кнопку <span class="button">Управление моделями</span></li>
@@ -182,9 +379,9 @@
         </div>
     </div>
 
-    <h2>3. Работа с RTSP потоками</h2>
+    <h2 id="rtsp">4. Работа с RTSP потоками</h2>
     <div class="step">
-        <h3>3.1 Управление RTSP потоками</h3>
+        <h3>4.1 Управление RTSP потоками</h3>
         <p>Для расширенного управления потоками:</p>
         <ol>
             <li>Нажмите кнопку <span class="button">Управление RTSP потоками</span></li>
@@ -206,9 +403,9 @@
         </ol>
     </div>
 
-    <h2>4. Запуск анализа видео</h2>
+    <h2 id="analysis">5. Запуск анализа видео</h2>
     <div class="step">
-        <h3>4.1 Настройка параметров</h3>
+        <h3>5.1 Настройка параметров</h3>
         <p>Перед запуском анализа и во время работы доступна следующая настройка:</p>
         <ul>
             <li>Отображение/скрытие ключевых точек обнаружения</li>
@@ -216,7 +413,7 @@
     </div>
 
     <div class="step">
-        <h3>4.2 Запуск и остановка анализа</h3>
+        <h3>5.2 Запуск и остановка анализа</h3>
         <p>Процесс работы с различными источниками:</p>
         
         <h4>Для камеры и видеофайлов:</h4>
@@ -234,7 +431,7 @@
         <p><strong>Рекомендация:</strong> Для RTSP-потоков предварительно настройте их через меню "Управление RTSP" для удобного доступа.</p>
     </div>
 
-    <h2>5. Интерпретация результатов</h2>
+    <h2 id="results">6. Интерпретация результатов</h2>
     <div class="step">
         <p>Система предоставляет несколько способов отображения результатов (рисунок 16):</p>
         
@@ -248,15 +445,33 @@
         <p class="image-caption">Рисунок 16 – Визуализация результатов обнаружения СИЗ</p>
         
         <h3>Текстовые уведомления</h3>
-        <p>В нижней части интерфейса отображаются статусные сообщения о текущем состоянии, как пример:</p>
+        <p>В нижней части интерфейса отображаются статусные сообщения о текущем состоянии:</p>
         <ul>
-            <li>"СИЗ: статус недоступен"</li>
-            <li>"СИЗ: модель не содержит классов"</li>
-            <li>"СИЗ: все на местах"</li>
             <li>"СИЗ обнаружены: каска, очки"</li>
-            <li>"СИЗ: ничего не обнаружено, ожидаются (x 1 каска)"</li>
-            <li>"СИЗ: ничего не обнаружено"</li>
+            <li>"Внимание: отсутствуют защитные перчатки"</li>
+            <li>"Нарушение: каска надета неправильно"</li>
         </ul>
+    </div>
+
+    <h2 id="troubleshooting">7. Решение проблем</h2>
+    <div class="step">
+        <h3>7.1 Частые проблемы и решения</h3>
+        <ul>
+            <li><strong>Проблема:</strong> "Не удаётся загрузить модель"<br>
+                <strong>Решение:</strong> Проверьте, что файлы <code>.pt</code> и <code>.yaml</code> находятся в указанной папке и не повреждены.</li>
+            <li><strong>Проблема:</strong> "Не удаётся подключиться к камере"<br>
+                <strong>Решение:</strong> Проверьте правильность индекса камеры и её подключение к компьютеру.</li>
+            <li><strong>Проблема:</strong> "RTSP-поток не воспроизводится"<br>
+                <strong>Решение:</strong> Убедитесь в правильности URL и авторизационных данных.</li>
+        </ul>
+    </div>
+
+    <h2 id="contacts">8. Контакты и поддержка</h2>
+    <div class="contact-info">
+        <p>Для получения технической поддержки, коммерческих предложений или сотрудничества:</p>
+        <p><strong>Email:</strong> <a href="mailto:mikhail.lol.03@gmail.com">mikhail.lol.03@gmail.com</a></p>
+        <p><strong>Telegram:</strong> <a href="https://t.me/MikhailBezm">@MikhailBezm</a></p>
+        <p><strong>Часы работы поддержки:</strong> Пн-Пт, 9:00-18:00 (МСК)</p>
     </div>
 
     <div class="warning">
