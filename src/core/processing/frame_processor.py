@@ -63,15 +63,19 @@ class FrameProcessor:
                 status = self._check_compliance(boxes, pose_results, frame.shape, model_type)
                 if isinstance(status, tuple) and len(status) >= 3:
                     statuses = status[0]
+                    people_count = status[1]
+                    detected_siz = status[2]
                     missing_areas = status[3] if len(status) > 3 else []
                 else:
                     statuses = status
+                    people_count = 0
+                    detected_siz = {}
                     
                 frame = self.drawer.draw_detections(frame, boxes, statuses, model_type, missing_areas)
+                return frame, (statuses, people_count, detected_siz)
             else:
-                status = "nothing"
                 # Если нет боксов, но есть люди, рисуем отсутствующие СИЗ
-                if pose_results is not None:
+                if pose_results is not None and hasattr(pose_results, 'keypoints'):
                     class_names = self.detectors['yolo'].class_names.get(model_type, []) if model_type else []
                     required_siz = {siz_type: len(pose_results.keypoints.xy) 
                                 for siz_type in ['glasses', 'glove', 'helmet', 'vest', 'pants']}
@@ -79,6 +83,8 @@ class FrameProcessor:
                         pose_results, frame.shape, {}, required_siz, class_names
                     )
                     frame = self.drawer.draw_missing_siz(frame, missing_areas)
+                    return frame, ([], len(pose_results.keypoints.xy), {})
+                return frame, ([], 0, {})
 
             # Отрисовка лэндмарков
             if self.show_landmarks and pose_results is not None:
@@ -86,9 +92,7 @@ class FrameProcessor:
 
         except Exception as e:
             self.logger.error(f"Frame processing error: {str(e)}", exc_info=True)
-            status = False
-            
-        return frame, status
+            return frame, ([], 0, {})
 
     def draw_landmarks(self, frame, pose_results, face_results):
         try:
@@ -116,6 +120,9 @@ class FrameProcessor:
             
         try:
             class_names = self.detectors['yolo'].class_names.get(model_type, [])
+            if not class_names:
+                self.logger.warning(f"No class names found for model type: {model_type}")
+            
             statuses, people_count, detected_siz = self.detectors['siz'].check_items(
                 boxes, pose_results, frame_shape, class_names
             )

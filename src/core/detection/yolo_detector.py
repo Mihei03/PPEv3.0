@@ -17,33 +17,28 @@ class YOLODetector:
         return hasattr(self, 'models') and self.models is not None
 
     def load_model(self, model_type, model_info):
-        """Загружает модель по типу ('glasses' или 'ppe')"""
         try:
-            # Проверка существования файлов
             if not os.path.exists(model_info['pt_file']):
                 raise FileNotFoundError(f"Файл модели {model_info['pt_file']} не найден")
                 
             if not os.path.exists(model_info['yaml_file']):
                 raise FileNotFoundError(f"Конфиг {model_info['yaml_file']} не найден")
             
-            # Загрузка модели
             model = YOLO(model_info['pt_file'])
             
-            # Загрузка классов
+            # Загрузка классов из YAML
             with open(model_info['yaml_file']) as f:
                 data = yaml.safe_load(f)
-                self.class_names[model_type] = data['names']
+                if 'names' not in data:
+                    raise ValueError("YAML файл не содержит ключа 'names'")
+                self.class_names[model_type] = data['names']  # Убедитесь, что это список
             
             self.models[model_type] = model
             self.current_model_name = model_type
             self.logger.info(f"Модель {model_type} успешно загружена. Классы: {self.class_names[model_type]}")
             return True
-            
         except Exception as e:
             self.logger.error(f"Ошибка загрузки модели {model_type}: {str(e)}", exc_info=True)
-            # Очищаем недозагруженную модель
-            if model_type in self.models:
-                del self.models[model_type]
             return False
     
     def detect(self, frame, model_type, statuses=None):

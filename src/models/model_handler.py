@@ -206,6 +206,11 @@ class ModelHandler(QObject):
                             f"Не удалось добавить модель:\n{str(e)}")
             return False
     
+    def get_current_model_classes(self):
+        if not self._current_model or not self.yolo:
+            return []
+        return self.yolo.class_names.get(self._current_model, [])
+
     def _get_class_names(self, model_name, model_info):
         try:
             with open(model_info['yaml_file'], 'r') as f:

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Руководство пользователя PPEsv3.0</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px;
+            color: #2d3436;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #0984e3;
+            font-size: 2.2em;
+            border-bottom: 2px solid #00cec9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #00b894;
+            margin-top: 40px;
+            font-size: 1.6em;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #dfe6e9;
+        }
+        h3 {
+            color: #0984e3;
+            font-size: 1.3em;
+            margin-top: 25px;
+        }
+        .step {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 4px solid #74b9ff;
+        }
+        .note {
+            background-color: #fffde7;
+            padding: 15px;
+            border-left: 4px solid #ffd600;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .warning {
+            background-color: #ffebee;
+            padding: 15px;
+            border-left: 4px solid #f44336;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin: 15px auto; /* Изменено для центрирования */
+            border-radius: 5px;
+            display: block;
+        }
+        code {
+            background-color: #eceff1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        ul {
+            padding-left: 25px;
+        }
+        li {
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .image-caption {
+            text-align: center;
+            font-style: italic;
+            color: #636e72;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #0984e3;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+        /* Добавлены новые стили для центрирования изображений в списках */
+        ul img {
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Руководство пользователя PPEsv3.0</h1>
+
+    <h2>1. Начало работы</h2>
+    <div class="step">
+        <h3>1.1 Запуск программы</h3>
+        <p>Для запуска программы выполните следующие действия:</p>
+        <ol>
+            <li>Откройте командную строку/терминал в папке с программой</li>
+            <li>Выполните команду: <code>python main.py</code></li>
+        </ol>
+        <p>После непродолжительной загрузки откроется главное окно приложения (рисунок 1).</p>
+        <img src="../images/Screenshots/PPEsv3.0 Main Interface.jpg" alt="Главное окно приложения">
+        <p class="image-caption">Рисунок 1 – Главный интерфейс PPEsv3.0</p>
+    </div>
+
+    <div class="step">
+        <h3>1.2 Выбор источника видео</h3>
+        <p>В левой нижней части интерфейса расположен блок выбора источника видеоданных (рисунок 2):</p>
+        
+        <img src="../images/Screenshots/Sources.png" alt="Выбор источника видео">
+        <p class="image-caption">Рисунок 2 – Меню выбора источника видео</p>
+        
+        <p>Доступные варианты:</p>
+        <ul>
+            <li><strong>Камера</strong> - подключение к веб-камере или IP-камере (рисунок 3)</li>
+            <img src="../images/Screenshots/Camera.png" alt="Камера">
+            <p class="image-caption">Рисунок 3 – Источник камера</p>
+            <li><strong>Видеофайл</strong> - анализ предварительно записанного видео (рисунок 4)</li>
+            <img src="../images/Screenshots/Video file.png" alt="Видеофайл">
+            <p class="image-caption">Рисунок 4 – Источник Видеофайл</p>
+            <li><strong>RTSP поток</strong> - работа с сетевыми камерами через RTSP-протокол (рисунок 5)</li>
+            <img src="../images/Screenshots/RTSP stream.png" alt="RTSP поток">
+            <p class="image-caption">Рисунок 5 – Источник RTSP поток</p>
+        </ul>
+        
+        <div class="note">
+            <p><strong>Предупреждение:</strong> Укажите параметры источника: индекс камеры или путь к файлу (рисунок 6).</p>
+            <img src="../images/Screenshots/id.png" alt="RTSP поток">
+            <p class="image-caption">Рисунок 6 – Параметры источника</p>
+        </div>
+    </div>
+
+    <h2>2. Работа с моделями обнаружения</h2>
+    <div class="step">
+        <h3>2.1 Выбор модели</h3>
+        <p>Для выбора модели обнаружения (рисунок 7):</p>
+        <ol>
+            <li>Раскройте выпадающий список "Модель"</li>
+            <li>Выберите нужную модель из доступных вариантов</li>
+            <li>Нажмите кнопку <span class="button">Активировать</span></li>
+        </ol>
+        <img src="../images/Screenshots/Detection Model Selection Panel.png" alt="Выбор модели">
+        <p class="image-caption">Рисунок 7 – Панель выбора модели обнаружения</p>
+        
+    </div>
+
+    <div class="step">
+        <h3>2.2 Управление моделями</h3>
+        <p>Для расширенного управления моделями:</p>
+        <ol>
+            <li>Нажмите кнопку <span class="button">Управление моделями</span></li>
+            <li>В открывшемся окне используйте кнопки (рисунок 8):
+                <img src="../images/Screenshots/Manage Models Window.png" alt="Управление моделями">
+                <p class="image-caption">Рисунок 8 – Окно «Управление моделями»</p>
+                <ul>
+                    <li><span class="button">Добавить</span> - открывает новое окно «Добавить модель» для добавления обученной модели в программу, путь к модели задаётся через встроенный проводник в системе, название и комментарий задаются пользователем (рисунок 9)</li>
+                    <img src="../images/Screenshots/The Add Model window.png" alt="Добавить модель">
+                    <p class="image-caption">Рисунок 9 – Окно «Добавить модель» </p>
+                    <li><span class="button">Изменить</span> - для работоспособности кнопки, нужно выбрать модель в таблице (нажав на неё левой кнопкой мыши), после чего откроется окно «Изменить модель» в котором можно изменить название и комментарий к модели (рисунок 10)</li>
+                    <img src="../images/Screenshots/The Change Model window.png" alt="Изменить модель">
+                    <p class="image-caption">Рисунок 10 – Окно «Изменить модель» </p>
+                    <li><span class="button">Удалить</span> - для работоспособности кнопки, нужно выбрать модель в таблице (нажав на неё левой кнопкой мыши), после чего откроется окно для подтверждения удаления модели (рисунок 11)</li>
+                    <img src="../images/Screenshots/Confirmation window.png" alt="Подтверждение">
+                    <p class="image-caption">Рисунок 11 – Окно «Подтверждение» </p>
+                </ul>
+            </li>
+        </ol>
+        
+        <div class="warning">
+            <p><strong>Важно:</strong> Для добавления модели необходимы два файла: <code>.pt</code> (веса модели) и <code>.yaml</code> (конфигурация).</p>
+        </div>
+    </div>
+
+    <h2>3. Работа с RTSP потоками</h2>
+    <div class="step">
+        <h3>3.1 Управление RTSP потоками</h3>
+        <p>Для расширенного управления потоками:</p>
+        <ol>
+            <li>Нажмите кнопку <span class="button">Управление RTSP потоками</span></li>
+            <li>В открывшемся окне используйте кнопки (рисунок 12):
+                <img src="../images/Screenshots/Window RTSP Stream Management.png" alt="Управление RTSP потоками">
+                <p class="image-caption">Рисунок 12 – Окно «Управление RTSP потоками»</p>
+                <ul>
+                    <li><span class="button">Добавить</span> - открывает новое окно «Добавить новый RTSP поток» для добавления потока необходимо указать, название потока, URL потока, комментарий и привязать модель из выпадающего списка (рисунок 13)</li>
+                    <img src="../images/Screenshots/The Add New RTSP Stream window.png" alt="Добавить новый RTSP поток">
+                    <p class="image-caption">Рисунок 13 – Окно «Добавить новый RTSP поток»</p>
+                    <li><span class="button">Изменить</span> - для работоспособности кнопки, нужно выбрать поток в таблице (нажав на неё левой кнопкой мыши), после чего откроется окно «Изменить RTSP поток» в котором можно изменить название, URL, комментарий и привязанную модель (рисунок 14)</li>
+                    <img src="../images/Screenshots/The Change RTSP Stream window.png" alt="Изменить RTSP поток">
+                    <p class="image-caption">Рисунок 14 – Окно «Изменить RTSP поток» </p>
+                    <li><span class="button">Удалить</span> - для работоспособности кнопки, нужно выбрать поток в таблице (нажав на неё левой кнопкой мыши), после чего откроется окно для подтверждения удаления (рисунок 15)</li>
+                    <img src="../images/Screenshots/Confirmation window RTSP.png" alt="Подтверждение">
+                    <p class="image-caption">Рисунок 15 – Окно «Подтверждение» </p>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <h2>4. Запуск анализа видео</h2>
+    <div class="step">
+        <h3>4.1 Настройка параметров</h3>
+        <p>Перед запуском анализа и во время работы доступна следующая настройка:</p>
+        <ul>
+            <li>Отображение/скрытие ключевых точек обнаружения</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>4.2 Запуск и остановка анализа</h3>
+        <p>Процесс работы с различными источниками:</p>
+        
+        <h4>Для камеры и видеофайлов:</h4>
+        <ol>
+            <li>Нажмите <span class="button">Активировать</span></li>
+            <li>После активации кнопка <span class="button">Запустить анализ</span> станет доступной</li>
+            <li>Для остановки нажмите кнопку еще раз (она изменится на <span class="button">Остановить</span>)</li>
+        </ol>
+        
+        <h4>Для RTSP-потоков:</h4>
+        <p>Если поток настроен правильно, кнопка <span class="button">Запустить анализ</span> будет доступна сразу.</p>
+    </div>
+
+    <div class="note">
+        <p><strong>Рекомендация:</strong> Для RTSP-потоков предварительно настройте их через меню "Управление RTSP" для удобного доступа.</p>
+    </div>
+
+    <h2>5. Интерпретация результатов</h2>
+    <div class="step">
+        <p>Система предоставляет несколько способов отображения результатов (рисунок 16):</p>
+        
+        <h3>Визуальные индикаторы</h3>
+        <ul>
+            <li><strong style="color: #2ecc71;">Зеленые рамки</strong> - СИЗ обнаружены и соответствуют требованиям</li>
+            <li><strong style="color: #e74c3c;">Красные рамки</strong> - СИЗ отсутствуют или надеты неправильно</li>
+        </ul>
+        
+        <img src="../images/Screenshots/Displaying results.png" alt="Пример результатов анализа">
+        <p class="image-caption">Рисунок 16 – Визуализация результатов обнаружения СИЗ</p>
+        
+        <h3>Текстовые уведомления</h3>
+        <p>В нижней части интерфейса отображаются статусные сообщения о текущем состоянии, как пример:</p>
+        <ul>
+            <li>"СИЗ: статус недоступен"</li>
+            <li>"СИЗ: модель не содержит классов"</li>
+            <li>"СИЗ: все на местах"</li>
+            <li>"СИЗ обнаружены: каска, очки"</li>
+            <li>"СИЗ: ничего не обнаружено, ожидаются (x 1 каска)"</li>
+            <li>"СИЗ: ничего не обнаружено"</li>
+        </ul>
+    </div>
+
+    <div class="warning">
+        <p><strong>Важно для корректной работы:</strong></p>
+        <ul>
+            <li>Убедитесь, что выбранная модель активирована</li>
+            <li>Проверьте подключение камеры или доступность видеофайла</li>
+            <li>Для RTSP-потоков убедитесь в правильности авторизационных данных</li>
+        </ul>
+    </div>
+</body>
+</html>

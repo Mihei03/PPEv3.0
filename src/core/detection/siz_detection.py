@@ -40,6 +40,7 @@ class SIZDetector:
         }
 
     def check_items(self, boxes, pose_results, frame_shape, class_names):
+        self.logger.debug(f"Checking items with class_names: {class_names}")
         try:
             if boxes is None or len(boxes.xyxy) == 0:
                 self.logger.debug("No boxes detected")

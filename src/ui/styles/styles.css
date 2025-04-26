@@ -508,3 +508,87 @@ QWidget QLabel#videoTitle {
     font-size: 20px !important;
 }
 
+/* ==================== ПАНЕЛЬ ИНСТРУМЕНТОВ ==================== */
+QToolBar {
+    background-color: #e0e0e0;
+    border-bottom: 1px solid #cccccc;
+    padding: 2px;
+    spacing: 5px;
+}
+
+QToolBar::handle {
+    width: 10px;
+    height: 10px;
+    background: transparent;
+}
+
+/* Кнопки на панели инструментов */
+QToolBar QToolButton {
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 24px;
+    border: 1px solid #838383;
+    background-color: #e0e0e0;
+    font-size: 11px;
+}
+
+QToolBar QToolButton:hover {
+    background-color: #d0d0d0;
+}
+
+QToolBar QToolButton:pressed {
+    background-color: #c0c0c0;
+}
+
+/* Темная тема для панели инструментов */
+.dark-mode QToolBar {
+    background-color: #333333;
+    border-bottom: 1px solid #444444;
+}
+
+.dark-mode QToolBar QToolButton {
+    background-color: #333333;
+    border: 1px solid #555555;
+    color: #ffffff;
+}
+
+.dark-mode QToolBar QToolButton:hover {
+    background-color: #444444;
+}
+
+.dark-mode QToolBar QToolButton:pressed {
+    background-color: #555555;
+}
+
+/* Стили для кнопок документации (используют те же стили, что и обычные кнопки) */
+QToolBar QPushButton {
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-height: 24px;
+    border: 1px solid #838383;
+    background-color: #e0e0e0;
+    font-size: 11px;
+}
+
+QToolBar QPushButton:hover {
+    background-color: #d0d0d0;
+}
+
+QToolBar QPushButton:pressed {
+    background-color: #c0c0c0;
+}
+
+/* Темная тема для кнопок документации */
+.dark-mode QToolBar QPushButton {
+    background-color: #333333;
+    border: 1px solid #555555;
+    color: #ffffff;
+}
+
+.dark-mode QToolBar QPushButton:hover {
+    background-color: #444444;
+}
+
+.dark-mode QToolBar QPushButton:pressed {
+    background-color: #555555;
+}
