@@ -71,7 +71,7 @@ class FrameProcessor:
                     people_count = 0
                     detected_siz = {}
                     
-                frame = self.drawer.draw_detections(frame, boxes, statuses, model_type, missing_areas)
+                frame = self.drawer.draw_detections(frame, boxes, statuses, model_type, pose_results, missing_areas)
                 return frame, (statuses, people_count, detected_siz)
             else:
                 # Если нет боксов, но есть люди, рисуем отсутствующие СИЗ
@@ -157,4 +157,5 @@ class FrameProcessor:
 
     def toggle_landmarks(self, state):
         self.show_landmarks = state
+        self.drawer.set_show_landmarks(state)  # Передаем состояние в drawer
         self.logger.info(f"Landmarks visibility: {'ON' if state else 'OFF'}")

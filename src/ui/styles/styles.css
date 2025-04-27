@@ -156,16 +156,16 @@ QPushButton#themeButton {
 /* Темная тема для кнопок */
 .dark-mode QPushButton {
     border: 1px solid #555555;
-    background-color: #333333;
+    background-color: #707070;
     color: #ffffff;
 }
 
 .dark-mode QPushButton:hover {
-    background-color: #444444;
+    background-color: #6a6a6a; /* Изменено: более плавный переход */
 }
 
 .dark-mode QPushButton:pressed {
-    background-color: #555555;
+    background-color: #656565; /* Изменено: более плавный переход */
 }
 /* ==================== ПОЛЯ ВВОДА ==================== */
 QLineEdit, QTextEdit {
@@ -456,8 +456,8 @@ QComboBox[state="disabled"]::drop-down {
 .dark-mode QLineEdit[state="disabled"],
 .dark-mode QPushButton[state="disabled"]:not(#startButton),
 .dark-mode QCheckBox[state="disabled"] {
-    background-color: #333333;
-    color: #666666;
+    background-color: #707070;
+    color: #ffffff;
     border-color: #444444;
 }
 

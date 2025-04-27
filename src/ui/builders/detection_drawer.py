@@ -8,20 +8,28 @@ class DetectionDrawer:
     def __init__(self):
         self.logger = AppLogger.get_logger()
         self.detectors = {}
+        self.show_landmarks = False
         self.drawing_spec = mp.solutions.drawing_utils.DrawingSpec(
             color=(0, 255, 0), thickness=1, circle_radius=1
         )
+
+    def set_show_landmarks(self, show):
+        """Устанавливает флаг отображения ключевых точек"""
+        self.show_landmarks = show
 
     def set_detectors(self, yolo, siz):
         self.detectors['yolo'] = yolo
         self.detectors['siz'] = siz
 
-    def draw_detections(self, frame, boxes, statuses, model_type, missing_areas=None):
+    def draw_detections(self, frame, boxes, statuses, model_type, pose_results=None, missing_areas=None):
         if boxes is None or not hasattr(boxes, 'xyxy'):
             self.logger.warning("No boxes to draw")
             # Рисуем отсутствующие СИЗ, даже если нет боксов
             if missing_areas:
                 frame = self.draw_missing_siz(frame, missing_areas)
+            # Рисуем ключевые точки, если включено
+            if self.show_landmarks and pose_results:
+                frame = self.draw_landmarks(frame, pose_results)
             return frame
             
         class_names = self.detectors['yolo'].class_names.get(model_type, [])
@@ -57,6 +65,10 @@ class DetectionDrawer:
         
         if missing_areas:
             frame = self.draw_missing_siz(frame, missing_areas)
+            
+        # Рисуем ключевые точки, если включено
+        if self.show_landmarks and pose_results is not None:
+            frame = self.draw_landmarks(frame, pose_results)
 
         return frame
 
@@ -65,8 +77,13 @@ class DetectionDrawer:
             if pose_results is None or not hasattr(pose_results, 'keypoints'):
                 return frame
                 
+            # Создаем копию кадра для рисования
             image_to_draw = frame.copy()
-            return draw_landmarks(image_to_draw, pose_results)
+            image_with_landmarks = draw_landmarks(image_to_draw, pose_results)
+            
+            # Наложение обратно на исходный кадр
+            cv2.addWeighted(image_with_landmarks, 0.7, frame, 0.3, 0, frame)
+            return frame
         except Exception as e:
             self.logger.error(f"Landmark drawing error: {str(e)}")
             return frame
