@@ -66,20 +66,3 @@ class YOLODetector:
             frame = results[0].plot()
         
         return frame, boxes
-
-    def _draw_custom_boxes(self, frame, boxes, confidences, class_ids, statuses, model_type):
-        """Кастомная отрисовка с цветами по статусу"""
-        for box, conf, cls_id, status in zip(boxes, confidences, class_ids, statuses):
-            x1, y1, x2, y2 = map(int, box)
-            color = (0, 255, 0) if status else (0, 0, 255)  # Зеленый/красный
-            
-            # Рисуем bounding box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            
-            # Подпись с названием класса и confidence
-            class_name = self.class_names[model_type][cls_id]
-            label = f"{class_name} {conf:.2f}"
-            cv2.putText(frame, label, (x1, y1-10), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        
-        return frame

@@ -94,25 +94,6 @@ class FrameProcessor:
             self.logger.error(f"Frame processing error: {str(e)}", exc_info=True)
             return frame, ([], 0, {})
 
-    def draw_landmarks(self, frame, pose_results, face_results):
-        try:
-            if pose_results is None and face_results is None:
-                return frame
-                
-            # Проверяем, что есть что рисовать
-            has_pose = pose_results is not None and hasattr(pose_results, 'pose_landmarks')
-            has_face = face_results is not None and hasattr(face_results, 'multi_face_landmarks')
-            
-            if not has_pose and not has_face:
-                return frame
-                
-            image_to_draw = frame.copy()
-            draw_landmarks(image_to_draw, pose_results, face_results)
-            return image_to_draw
-        except Exception as e:
-            self.logger.error(f"Landmark drawing error: {str(e)}")
-            return frame
-
     def _check_compliance(self, boxes, pose_results, frame_shape, model_type):
         if 'siz' not in self.detectors or self.detectors['siz'] is None:
             self.logger.warning("SIZ detector not initialized")
