@@ -75,14 +75,24 @@ class SIZDetector:
                             kpts = pose_results.keypoints.xy[person_idx].cpu().numpy()
                             if 'glass' in class_name.lower():
                                 status = self._check_glasses(box, kpts)
+                                if not status:
+                                    self.logger.info(f"Очки не обнаружены на человеке {person_idx}")
                             elif 'glove' in class_name.lower():
                                 status = self._check_glove(box, kpts, frame_shape[1], frame_shape[0])
+                                if not status:
+                                    self.logger.info(f"Перчатки не обнаружены на человеке {person_idx}")
                             elif 'helmet' in class_name.lower():
                                 status = self._check_helmet(box, pose_results, frame_shape[1], frame_shape[0])
+                                if not status:
+                                    self.logger.info(f"Каска не обнаружена на человеке {person_idx}")
                             elif 'pants' in class_name.lower():
                                 status = self._check_pants(box, kpts)
+                                if not status:
+                                    self.logger.info(f"Штаны не обнаружены на человеке {person_idx}")
                             elif 'vest' in class_name.lower():
                                 status = self._check_vest(box, kpts)
+                                if not status:
+                                    self.logger.info(f"Жилет не обнаружен на человеке {person_idx}")
                             
                             # Увеличиваем счетчик обнаруженных СИЗ
                             if class_name in detected_siz:
@@ -92,6 +102,13 @@ class SIZDetector:
                 except Exception as e:
                     self.logger.warning(f"Error processing box {i}: {str(e)}")
                     statuses.append(False)
+                    
+            # Проверяем, все ли необходимые СИЗ обнаружены
+            for siz_type, required_count in required_siz.items():
+                detected_count = detected_siz.get(siz_type, 0)
+                if detected_count < required_count:
+                    missing_count = required_count - detected_count
+                    self.logger.warning(f"Не хватает {missing_count} {siz_type} (требуется: {required_count}, обнаружено: {detected_count})")
                     
             return statuses, people_count, detected_siz
         except Exception as e:
@@ -390,6 +407,9 @@ class SIZDetector:
                 detected = detected_siz.get(siz_type, 0)
                 
                 if required > detected:
+                    missing_count = required - detected
+                    self.logger.info(f"Обнаружено отсутствие {missing_count} {siz_type}")
+                    
                     for person_idx in range(len(pose_results.keypoints.xy)):
                         kpts = pose_results.keypoints.xy[person_idx].cpu().numpy()
                         
